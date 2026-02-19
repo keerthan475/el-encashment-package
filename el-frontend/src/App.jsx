@@ -40,7 +40,7 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, padding: "30px", background: "#ffffff" }}>
+      <div style={{ flex: 1, padding: "10px", background: "#ffffff" }}>
         {activePage === "home" && <h2>Welcome</h2>}
         {activePage === "prepare" && <PrepareBill />}
       </div>
