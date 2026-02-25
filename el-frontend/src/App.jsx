@@ -1,5 +1,7 @@
 import { useState } from "react";
 import PrepareBill from "./PrepareBill";
+import AddBillNo from "./pages/AddBillNo";
+import AddDvNo from "./pages/AddDvNo";
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -28,8 +30,13 @@ function App() {
           Prepare Bill
         </div>
 
-        <div>Add Bill No</div>
-        <div>Add DV No</div>
+        <div style={{ marginBottom: "10px", cursor: "pointer" }}
+             onClick={() => setActivePage("addBill")}
+        >Add Bill No</div>
+
+        <div style={{ marginBottom: "10px", cursor: "pointer" }}
+             onClick={() => setActivePage("addDv")}
+        >Add DV No</div>
         <div>Add MRO Details</div>
         <div>Show MRO Details</div>
         <div>View Old Bills</div>
@@ -43,6 +50,9 @@ function App() {
       <div style={{ flex: 1, padding: "10px", background: "#ffffff" }}>
         {activePage === "home" && <h2>Welcome</h2>}
         {activePage === "prepare" && <PrepareBill />}
+        {activePage === "addBill" && <AddBillNo />}
+        {activePage === "addDv" && <AddDvNo />}
+
       </div>
 
     </div>

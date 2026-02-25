@@ -31,11 +31,29 @@ public class Encashment {
     private double itRecovery;
 
     private double otherRecovery;
+    private String otherRemark;
     private double otherTaxable;
+    private String otherTaxableRemark;
 
     private double grandTotal;
 
     private LocalDate createdDate = LocalDate.now();
+
+    //add bill no.
+    private String billNo;
+    private LocalDate billDate;
+
+    //add dv no.
+    private String dvNo;
+    private LocalDate dvDate;
+    private Double dvAmount;
+    private Double dvBalance;
+    private Double recoveryCda;
+    private String cdaRemarks;
+    private Double recoveryCdaTax;
+    private String cdaTaxRemarks;
+
+    
 
     public Encashment() {}
 
@@ -109,9 +127,97 @@ public class Encashment {
     public double getOtherTaxable() { return otherTaxable; }
     public void setOtherTaxable(double otherTaxable) { this.otherTaxable = otherTaxable; }
 
+    public String getOtherRemark() { return otherRemark; }
+    public void setOtherRemark(String otherRemark) { this.otherRemark = otherRemark;}
+
+    public String getOtherTaxableRemark() { return otherTaxableRemark; }
+    public void setOtherTaxableRemark(String otherTaxableRemark) { this.otherTaxableRemark = otherTaxableRemark; }
+
     public double getGrandTotal() { return grandTotal; }
     public void setGrandTotal(double grandTotal) { this.grandTotal = grandTotal; }
 
     public LocalDate getCreatedDate() { return createdDate; }
     public void setCreatedDate(LocalDate createdDate) { this.createdDate = createdDate; }
+
+    public String getBillNo() {
+        return billNo;
+    }
+
+    public void setBillNo(String billNo) {
+        this.billNo = billNo;
+    }
+
+    public LocalDate getBillDate() {
+        return billDate;
+    }
+
+    public void setBillDate(LocalDate billDate) {
+        this.billDate = billDate;
+    }
+
+    public String getDvNo() {
+        return dvNo;
+    }
+
+    public void setDvNo(String dvNo) {
+        this.dvNo = dvNo;
+    }
+
+    public LocalDate getDvDate() {
+        return dvDate;
+    }
+
+    public void setDvDate(LocalDate dvDate) {
+        this.dvDate = dvDate;
+    }
+
+    public Double getDvAmount() {
+        return dvAmount;
+    }
+
+    public void setDvAmount(Double dvAmount) {
+        this.dvAmount = dvAmount;
+    }
+
+    public Double getDvBalance() {
+        return dvBalance;
+    }
+
+    public void setDvBalance(Double dvBalance) {
+        this.dvBalance = dvBalance;
+    }
+
+    public Double getRecoveryCda() {
+        return recoveryCda;
+    }
+
+    public void setRecoveryCda(Double recoveryCda) {
+        this.recoveryCda = recoveryCda;
+    }
+
+    public String getCdaRemarks() {
+        return cdaRemarks;
+    }
+
+    public void setCdaRemarks(String cdaRemarks) {
+        this.cdaRemarks = cdaRemarks;
+    }
+
+    public Double getRecoveryCdaTax() {
+        return recoveryCdaTax;
+    }
+
+    public void setRecoveryCdaTax(Double recoveryCdaTax) {
+        this.recoveryCdaTax = recoveryCdaTax;
+    }
+
+    public String getCdaTaxRemarks() {
+        return cdaTaxRemarks;
+    }
+
+    public void setCdaTaxRemarks(String cdaTaxRemarks) {
+        this.cdaTaxRemarks = cdaTaxRemarks;
+    }
+
+    
 }

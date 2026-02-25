@@ -22,7 +22,7 @@ function PrepareBill() {
 
 
   const [itApplicable, setItApplicable] = useState("");
-  const [itPercent, setItPercent] = useState(0);
+  const [itPercent, setItPercent] = useState("");
   const [itAmount, setItAmount] = useState(0);
   const [eduCess, setEduCess] = useState(0);
   const [itRecovery, setItRecovery] = useState(0);
@@ -33,14 +33,17 @@ function PrepareBill() {
   const [otherTaxableRemark, setOtherTaxableRemark] = useState("");
 
   const [grandTotal, setGrandTotal] = useState(0);
+  const [finalCalculated, setFinalCalculated] = useState(false);
+
+  const [errors, setErrors] = useState({});
 
 
 
 
-  const generateBlocks = () => {
-    if (!ltcStartDate) return;
+  const generateBlocks = (dateValue) => {
+    if (!dateValue) return;
 
-    const year = new Date(ltcStartDate).getFullYear();
+    const year = new Date(dateValue).getFullYear();
 
     let baseYear;
     let size;
@@ -95,6 +98,8 @@ function PrepareBill() {
     setHplAmount(0);
     setTotalAmount(0);
     setShowCalculation(false);
+    setDoPartDate("");
+    setDoPartNumber("");
   };
 
   const handlePurposeChange = async (value) => {
@@ -110,6 +115,8 @@ function PrepareBill() {
     setHplAmount(0);
     setTotalAmount(0);
     setShowCalculation(false);
+    setDoPartDate("");
+    setDoPartNumber("");
 
     if (value === "Retirement" && selectedEmployee) {
       const response = await fetch(
@@ -118,6 +125,43 @@ function PrepareBill() {
       const data = await response.json();
       setRetirementDate(data);
     }
+  };
+
+  const validateSection1 = () => {
+    const newErrors = {};
+
+    if (!selectedEmployee) newErrors.employee = "Select employee";
+    if (!purpose) newErrors.purpose = "Select purpose";
+
+    if ((purpose === "Home_Town" || purpose === "All_India") && !ltcStartDate)
+      newErrors.date = "Select LTC date";
+
+    if (purpose === "Retirement" && !retirementDate)
+      newErrors.date = "Retirement date missing";
+    if (
+        (purpose === "Home_Town" || purpose === "All_India") &&
+        !blockPeriod
+      ) newErrors.block = "Select block period";
+
+    if (!doPartNumber) newErrors.doPartNumber = "Enter DoPart number";
+    if (!doPartDate) newErrors.doPartDate = "Enter DoPart date";
+
+    if (purpose === "Home_Town" || purpose === "All_India") {
+      if (elDays < 0 || elDays > 10)
+        newErrors.elDays = "EL must be between 0 and 10";
+    } else {
+      if (elDays < 0 || elDays > 300)
+        newErrors.elDays = "EL must be 0–300";
+
+      if (hplDays < 0 || hplDays > 300)
+        newErrors.hplDays = "HPL must be 0–300";
+
+      if (elDays + hplDays > 300)
+        newErrors.totalLeave = "EL + HPL cannot exceed 300";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const calculateAmounts = () => {
@@ -161,15 +205,29 @@ function PrepareBill() {
   };
 
   const computeGrandTotal = () => {
+    if(!validateSection1() || !validateSection3()) return;
     const grand =
       totalAmount -
       (itRecovery + Number(otherRecovery) + Number(otherTaxable));
 
     setGrandTotal(grand);
-    saveBill();
+    setFinalCalculated(true);
+  };
+  const validateSection3 = () => {
+    const newErrors = {};
+
+    if (!itApplicable)
+      newErrors.itApplicable = "Select IT applicable option";
+
+    if (itApplicable === "Yes" && !itPercent)
+      newErrors.itPercent = "Select IT %";
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
   };
 
   const saveBill = async () => {
+    if(!validateSection1() || !validateSection3()) return;
     await fetch("http://localhost:8080/api/encashment/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -190,13 +248,25 @@ function PrepareBill() {
         doPartNumber,
         doPartDate,
         eventDate: ltcStartDate,
-        blockPeriod
+        blockPeriod,
+        otherRemark,
+        otherTaxableRemark
       })
     });
 
     alert("Bill saved successfully!");
   };
 
+const canCalculate =
+  !!selectedEmployee &&
+  !!purpose &&
+  Number.isFinite(elDays) &&
+  elDays >= 0 &&
+  (
+    (purpose === "Retirement")
+      ? !!retirementDate
+      : !!ltcStartDate
+  );
 
 
   return (
@@ -312,10 +382,18 @@ function PrepareBill() {
 
                 <input
                   type="date"
-                  value={ltcStartDate}
+                  value={
+                    purpose === "Retirement"
+                      ? retirementDate || ""
+                      : ltcStartDate
+                  }
                   onChange={(e) => {
-                    setLtcStartDate(e.target.value);
-                    generateBlocks();
+                    if (purpose === "Retirement") {
+                      setRetirementDate(e.target.value);
+                    } else {
+                      setLtcStartDate(e.target.value);
+                      generateBlocks(e.target.value);
+                    }
                   }}
                 />
               </div>
@@ -326,9 +404,11 @@ function PrepareBill() {
             {(purpose === "Home_Town" || purpose === "All_India") && availableBlocks.length>0 && (
               <div>
                 <label>Block Period</label>
-                <select onChange={(e)=>setBlockPeriod(e.target.value)}>
+                <select value={blockPeriod} onChange={(e)=>setBlockPeriod(e.target.value)}>
+                  <option value="">Select Block</option>
                   {availableBlocks.map(b => <option key={b}>{b}</option>)}
                 </select>
+                {errors.block && <p style={{color:"red"}}>{errors.block}</p>}
               </div>
             )}
 
@@ -343,6 +423,7 @@ function PrepareBill() {
                   max={(purpose==="Home_Town"||purpose==="All_India")?10:300}
                   onChange={(e)=>setElDays(Number(e.target.value))}
                 />
+                {errors.elDays && <p style={{color:"red"}}>{errors.elDays}</p>}
               </div>
             )}
 
@@ -357,6 +438,8 @@ function PrepareBill() {
                   max={300-elDays}
                   onChange={(e)=>setHplDays(Number(e.target.value))}
                 />
+                {errors.hplDays && <p style={{color:"red"}}>{errors.hplDays}</p>}
+                {errors.totalLeave && <p style={{color:"red"}}>{errors.totalLeave}</p>}
               </div>
             )}
 
@@ -368,6 +451,7 @@ function PrepareBill() {
                 value={doPartNumber}
                 onChange={(e)=>setDoPartNumber(e.target.value)}
               />
+              {errors.doPartNumber && <p style={{color:"red"}}>{errors.doPartNumber}</p>}
             </div>
 
             {/* DOPART DATE */}
@@ -378,11 +462,22 @@ function PrepareBill() {
                 value={doPartDate}
                 onChange={(e)=>setDoPartDate(e.target.value)}
               />
+              {errors.doPartDate && <p style={{color:"red"}}>{errors.doPartDate}</p>}
             </div>
 
             {/* GO BUTTON */}
             <div style={{ alignSelf:"end" }}>
-              <button onClick={calculateAmounts}>GO</button>
+              <button onClick={()=>{
+                if(!validateSection1()) return;
+                console.log(selectedEmployee);
+                calculateAmounts();
+              }}
+                disabled={!canCalculate}
+                style={{
+                  opacity: canCalculate ? 1 : 0.5,
+                  cursor: canCalculate ? "pointer" : "not-allowed"
+                }}
+              >GO</button>
             </div>
 
           </div>
@@ -391,7 +486,7 @@ function PrepareBill() {
       )}
 
       {/* Section 2 — Calculation */}
-      {totalAmount > 0 && (
+      {showCalculation && (
         <div style={{
           marginTop: "25px",
           padding: "20px",
@@ -418,7 +513,7 @@ function PrepareBill() {
       )}
 
       {/* SECTION 3 — TAX & RECOVERY */}
-      {totalAmount > 0 && (
+      {showCalculation && (
         <div style={{
           marginTop: "25px",
           padding: "20px",
@@ -440,17 +535,20 @@ function PrepareBill() {
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>
+            {errors.itApplicable &&(<p style={{color:"red"}}>{errors.itApplicable}</p>)}
           </div>
 
           {/* IT % */}
           {itApplicable==="Yes" && (
             <div style={{marginTop:"10px"}}>
               <label>IT %</label>
-              <select onChange={(e)=>setItPercent(Number(e.target.value))}>
+              <select value={itPercent} onChange={(e)=>setItPercent(e.target.value)}>
+                <option value="">Select %</option>
                 {[0,5,10,15,20,25,30,35,40,45,50].map(v=>(
                   <option key={v} value={v}>{v}%</option>
                 ))}
               </select>
+              {errors.itPercent &&(<p style={{color:"red"}}>{errors.itPercent}</p>)}
             </div>
           )}
 
@@ -521,13 +619,30 @@ function PrepareBill() {
           </button>
 
           {/* GRAND TOTAL */}
-          {grandTotal > 0 && (
+          {finalCalculated && (
             <h3 style={{marginTop:"15px"}}>
               Grand Total =
               Total − (IT Recovery + Other Recovery + Other Taxable)
               <br/>
               = ₹{grandTotal.toFixed(2)}
             </h3>
+          )}
+
+          {finalCalculated && (
+            <button
+              style={{
+                marginTop: "15px",
+                background: "#1976d2",
+                color: "white",
+                padding: "10px 20px",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer"
+              }}
+              onClick={saveBill}
+            >
+              💾 Save Bill
+            </button>
           )}
 
         </div>
