@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import com.example.el_encashment.model.BillUpdateRequest;
 import com.example.el_encashment.model.DvUpdateRequest;
+import com.example.el_encashment.model.MroRequest;
+
 @RestController
 @RequestMapping("/api/encashment")
 @CrossOrigin
@@ -44,5 +46,27 @@ public class EncashmentController {
     @PostMapping("/add-dv-no")
     public void updateDv(@RequestBody DvUpdateRequest req) {
         service.updateDvDetails(req.getIds(), req);
+    }
+
+    @GetMapping("/pending-mro")
+    public List<Encashment> getPendingMro(
+            @RequestParam(required=false) String category){
+
+        return service.getPendingMro(category);
+    }
+
+    @PostMapping("/add-mro")
+    public void addMro(@RequestBody MroRequest req){
+        service.saveMro(
+            req.getIds(),
+            req.getMroNo(),
+            req.getMroDate(),
+            req.getMroAmount()
+        );
+    }
+
+    @GetMapping("/mro-details")
+    public List<Encashment> getMroDetails(){
+        return service.getMroDetails();
     }
 }

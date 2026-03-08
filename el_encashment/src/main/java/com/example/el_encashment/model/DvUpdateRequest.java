@@ -1,7 +1,7 @@
 package com.example.el_encashment.model;
 
 import java.time.LocalDate;
-import java.util.List;;
+import java.util.List;
 
 public class DvUpdateRequest {
     private List<Long> ids;

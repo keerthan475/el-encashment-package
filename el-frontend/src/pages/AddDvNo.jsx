@@ -70,50 +70,88 @@ function AddDvNo() {
     <div style={{padding:"30px"}}>
       <h2>Add DV No</h2>
 
-      {/* TOP FORM */}
-      <div style={{marginBottom:"20px"}}>
+      <div style={{
+        background:"white",
+        padding:"20px",
+        borderRadius:"6px",
+        boxShadow:"0 2px 6px rgba(0,0,0,0.08)",
+        marginBottom:"20px",
+        display:"grid",
+        gridTemplateColumns:"repeat(3,1fr)",
+        gap:"20px"
+      }}>
 
-        <input placeholder="DV No"
-          value={dvNo}
-          onChange={e=>setDvNo(e.target.value)}
-        />
+        {/* TOP FORM */}
+        <div>
+          <label>DV No </label>
+          <input placeholder="DV No"
+            value={dvNo}
+            onChange={e=>setDvNo(e.target.value)}
+          />
+        </div>
 
-        <input type="date"
-          value={dvDate}
-          onChange={e=>setDvDate(e.target.value)}
-        />
+        <div>
+          <label>DV date </label>
+          <input type="date"
+            value={dvDate}
+            onChange={e=>setDvDate(e.target.value)}
+          />
+        </div>
 
-        <input placeholder="DV Amount"
-          value={dvAmount}
-          onChange={e=>setDvAmount(e.target.value)}
-        />
+        <div>
+          <label>DV Amount </label>
+          <input placeholder="DV Amount"
+            value={dvAmount}
+            onChange={e=>setDvAmount(e.target.value)}
+          />
+        </div>
 
-        <input placeholder="DV Balance"
-          value={dvBalance}
-          onChange={e=>setDvBalance(e.target.value)}
-        />
+        <div>
+          <label>DV Balance </label>
+          <input placeholder="DV Balance"
+            value={dvBalance}
+            onChange={e=>setDvBalance(e.target.value)}
+          />
+        </div>
 
-        <input placeholder="Recovery CDA"
-          value={recoveryCda}
-          onChange={e=>setRecoveryCda(e.target.value)}
-        />
+        <div>
+          <label>Recovery CDA </label>
+          <input placeholder="Recovery CDA"
+            value={recoveryCda}
+            onChange={e=>setRecoveryCda(e.target.value)}
+          />
+        </div>
 
-        <input placeholder="CDA Remarks"
-          value={cdaRemarks}
-          onChange={e=>setCdaRemarks(e.target.value)}
-        />
+        <div>
+          <label>CDA Remarks </label>
+          <input placeholder="CDA Remarks"
+            value={cdaRemarks}
+            onChange={e=>setCdaRemarks(e.target.value)}
+          />
+        </div>
 
-        <input placeholder="Recovery CDA Tax"
-          value={recoveryCdaTax}
-          onChange={e=>setRecoveryCdaTax(e.target.value)}
-        />
+        <div>
+          <label>Recovery CDA Tax </label>
+          <input placeholder="Recovery CDA Tax"
+            value={recoveryCdaTax}
+            onChange={e=>setRecoveryCdaTax(e.target.value)}
+          />
+        </div>
 
-        <input placeholder="CDA Tax Remarks"
-          value={cdaTaxRemarks}
-          onChange={e=>setCdaTaxRemarks(e.target.value)}
-        />
+        <div>
+          <label>Recovery CDA Tax Remarks </label>
+          <input placeholder="CDA Tax Remarks"
+            value={cdaTaxRemarks}
+            onChange={e=>setCdaTaxRemarks(e.target.value)}
+          />
+        </div>
 
-        <button onClick={submitDv}>Submit</button>
+        <div>
+
+          <button onClick={submitDv}>Submit</button>
+        </div>
+
+      
       </div>
 
       {/* TABLE */}

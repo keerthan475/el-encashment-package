@@ -21,6 +21,10 @@ public class Personnel {
     @Column(name = "EMP_CODE", unique = true)
     private String empCode;
 
+    @Column(name = "DISG_TYPE")
+    private Integer disgType;
+
+    
     private String name;
 
     private String division;
@@ -44,6 +48,15 @@ public class Personnel {
     public void setEmpCode(String empCode) {
         this.empCode = empCode;
     }
+
+    public Integer getDisgType() {
+        return disgType;
+    }
+
+    public void setDisgType(Integer disgType) {
+        this.disgType = disgType;
+    }
+
 
     public String getName() {
         return name;

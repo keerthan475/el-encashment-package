@@ -2,6 +2,9 @@ import { useState } from "react";
 import PrepareBill from "./PrepareBill";
 import AddBillNo from "./pages/AddBillNo";
 import AddDvNo from "./pages/AddDvNo";
+import AddMro from "./pages/AddMro";
+import ShowMroDetails from "./pages/ShowMroDetails";
+
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -37,8 +40,12 @@ function App() {
         <div style={{ marginBottom: "10px", cursor: "pointer" }}
              onClick={() => setActivePage("addDv")}
         >Add DV No</div>
-        <div>Add MRO Details</div>
-        <div>Show MRO Details</div>
+        <div style={{ marginBottom: "10px", cursor: "pointer" }}
+             onClick={() => setActivePage("addMro")}
+        >Add MRO Details</div>
+        <div style={{ marginBottom: "10px", cursor: "pointer" }}
+             onClick={() => setActivePage("showMro")}
+        >Show MRO Details</div>
         <div>View Old Bills</div>
         <div>View Bills Wise Report</div>
         <div>CGEIS Funds</div>
@@ -52,6 +59,8 @@ function App() {
         {activePage === "prepare" && <PrepareBill />}
         {activePage === "addBill" && <AddBillNo />}
         {activePage === "addDv" && <AddDvNo />}
+        {activePage === "addMro" && <AddMro />}
+        {activePage === "showMro" && <ShowMroDetails />}
 
       </div>
 

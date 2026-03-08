@@ -36,6 +36,7 @@ public class EncashmentService {
         repository.saveAll(records);
     }
 
+
     public List<Encashment> getBillsEligibleForDv() {
         return repository.findByBillNoIsNotNullAndDvNoIsNull();
     }
@@ -53,8 +54,82 @@ public class EncashmentService {
             e.setCdaRemarks(req.getCdaRemarks());
             e.setRecoveryCdaTax(req.getRecoveryCdaTax());
             e.setCdaTaxRemarks(req.getCdaTaxRemarks());
+            e.setDvNoDiff("DV-DIFF-01");
+            e.setDvDateDiff(LocalDate.now());
+            e.setDvAmountDiff(100.0);
+
+            e.setDvNoDiffPay("DV-DIFFPAY-01");
+            e.setDvDateDiffPay(LocalDate.now());
+            e.setDvAmountDiffPay(50.0);
+
+            double dv = e.getDvAmount() == null ? 0 : e.getDvAmount();
+            double diff = e.getDvAmountDiff() == null ? 0 : e.getDvAmountDiff();
+            double diffPay = e.getDvAmountDiffPay() == null ? 0 : e.getDvAmountDiffPay();
+
+            e.setSumDvAmount(dv + diff + diffPay);
         }
 
         repository.saveAll(records);
     }
+
+    //for table in add mro
+    public List<Encashment> getPendingMro() {
+        return repository
+            .findByDvNoIsNotNullAndMroNoIsNullAndPurposeInOrderByCreatedDateDesc(
+                List.of("Home_Town","All_India")
+            );
+    }
+
+    public List<Encashment> getPendingMro(String category){
+        if(category == null || category.equals("all")){
+            return getPendingMro();
+        }
+
+        List<Integer> types;
+
+        if(category.equals("officer")){
+            types = List.of(1);
+        }else{
+            types = List.of(2,3);
+        }
+
+        return repository.getPendingMro(types);
+    }    
+
+    public void saveMro(List<Long> ids, String mroNo, LocalDate mroDate, Double mroAmount) {
+
+        List<Encashment> list = repository.findAllById(ids);
+
+        for(Encashment e : list) {
+            if(e.getDvDate() == null){
+                throw new RuntimeException("DV date missing for record id: " + e.getId());
+            }            
+
+            if(mroDate.isBefore(e.getDvDate())){
+                throw new RuntimeException("MRO date cannot be before DV date");
+            }
+
+            double sum = e.getSumDvAmount();
+
+            if(!sumEquals(sum,mroAmount)){
+                throw new RuntimeException("MRO amount must equal sum DV amount");
+            }
+
+            e.setMroNo(mroNo);
+            e.setMroDate(mroDate);
+            e.setMroAmount(mroAmount);
+        }
+
+        repository.saveAll(list);
+    }
+
+    private boolean sumEquals(double a,double b){
+        return Math.abs(a-b) < 0.01;
+    }
+
+    public List<Encashment> getMroDetails(){
+        return repository.findByMroNoIsNotNullOrderByMroDateDesc();
+    }
+
+
 }

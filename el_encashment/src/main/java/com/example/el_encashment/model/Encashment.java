@@ -11,7 +11,13 @@ public class Encashment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "EMP_ID")
     private Long empId;
+
+    @ManyToOne
+    @JoinColumn(name = "EMP_ID", insertable = false, updatable = false)
+    private Personnel personnel;
+    
     private String purpose;
     private String doPartNumber;
     private LocalDate doPartDate;
@@ -52,6 +58,20 @@ public class Encashment {
     private String cdaRemarks;
     private Double recoveryCdaTax;
     private String cdaTaxRemarks;
+    
+    //add MRO No.
+    private String dvNoDiff;
+    private LocalDate dvDateDiff;
+    private Double dvAmountDiff;
+
+    private String dvNoDiffPay;
+    private LocalDate dvDateDiffPay;
+    private Double dvAmountDiffPay;
+    private Double sumDvAmount;
+
+    private String mroNo;
+    private LocalDate mroDate;
+    private Double mroAmount;
 
     
 
@@ -219,5 +239,87 @@ public class Encashment {
         this.cdaTaxRemarks = cdaTaxRemarks;
     }
 
+    
+
+
+    public String getDvNoDiff() {
+        return dvNoDiff;
+    }
+
+    public void setDvNoDiff(String dvNoDiff) {
+        this.dvNoDiff = dvNoDiff;
+    }
+
+    public LocalDate getDvDateDiff() {
+        return dvDateDiff;
+    }
+
+    public void setDvDateDiff(LocalDate dvDateDiff) {
+        this.dvDateDiff = dvDateDiff;
+    }
+
+    public Double getDvAmountDiff() {
+        return dvAmountDiff;
+    }
+
+    public void setDvAmountDiff(Double dvAmountDiff) {
+        this.dvAmountDiff = dvAmountDiff;
+    }
+
+    public String getDvNoDiffPay() {
+        return dvNoDiffPay;
+    }
+
+    public void setDvNoDiffPay(String dvNoDiffPay) {
+        this.dvNoDiffPay = dvNoDiffPay;
+    }
+
+    public LocalDate getDvDateDiffPay() {
+        return dvDateDiffPay;
+    }
+
+    public void setDvDateDiffPay(LocalDate dvDateDiffPay) {
+        this.dvDateDiffPay = dvDateDiffPay;
+    }
+
+    public Double getDvAmountDiffPay() {
+        return dvAmountDiffPay;
+    }
+
+    public void setDvAmountDiffPay(Double dvAmountDiffPay) {
+        this.dvAmountDiffPay = dvAmountDiffPay;
+    }
+
+    public Double getSumDvAmount() {
+        return sumDvAmount;
+    }
+
+    public void setSumDvAmount(Double sumDvAmount) {
+        this.sumDvAmount = sumDvAmount;
+    }
+
+    public String getMroNo() {
+        return mroNo;
+    }
+
+    public void setMroNo(String mroNo) {
+        this.mroNo = mroNo;
+    }
+
+    public LocalDate getMroDate() {
+        return mroDate;
+    }
+
+    public void setMroDate(LocalDate mroDate) {
+        this.mroDate = mroDate;
+    }
+
+    public Double getMroAmount() {
+        return mroAmount;
+    }
+
+    public void setMroAmount(Double mroAmount) {
+        this.mroAmount = mroAmount;
+    }
     
 }
