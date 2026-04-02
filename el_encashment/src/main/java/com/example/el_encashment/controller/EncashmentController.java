@@ -1,12 +1,21 @@
 package com.example.el_encashment.controller;
 
-import com.example.el_encashment.model.Encashment;
-import com.example.el_encashment.service.EncashmentService;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
 import com.example.el_encashment.model.BillUpdateRequest;
 import com.example.el_encashment.model.DvUpdateRequest;
+import com.example.el_encashment.model.Encashment;
 import com.example.el_encashment.model.MroRequest;
+import com.example.el_encashment.service.EncashmentService;
+import java.util.List;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/encashment")
@@ -24,9 +33,29 @@ public class EncashmentController {
         return service.save(encashment);
     }
 
+    @GetMapping("/{id}")
+    public Encashment getById(@PathVariable Long id) {
+        return service.getPreparedRecord(id);
+    }
+
+    @PutMapping("/{id}")
+    public Encashment update(@PathVariable Long id, @RequestBody Encashment encashment) {
+        return service.updatePreparedRecord(id, encashment);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        service.deletePreparedRecord(id);
+    }
+
     @GetMapping("/pending-bills")
-    public List<Encashment> getPendingBills() {
-        return service.getBillsWithoutBillNo();
+    public List<Encashment> getPendingBills(@RequestParam(defaultValue = "all") String category) {
+        return service.getPendingBills(category);
+    }
+
+    @GetMapping("/billed-records")
+    public List<Encashment> getBilledRecords(@RequestParam(defaultValue = "all") String category) {
+        return service.getBilledRecords(category);
     }
 
     @PostMapping("/add-bill-no")
@@ -39,8 +68,13 @@ public class EncashmentController {
     }
 
     @GetMapping("/pending-dv")
-    public List<Encashment> getBillsWithBillNo() {
-        return service.getBillsEligibleForDv();
+    public List<Encashment> getPendingDv(@RequestParam(defaultValue = "all") String category) {
+        return service.getPendingDv(category);
+    }
+
+    @GetMapping("/dv-records")
+    public List<Encashment> getDvRecords(@RequestParam(defaultValue = "all") String category) {
+        return service.getDvRecords(category);
     }
 
     @PostMapping("/add-dv-no")
@@ -49,14 +83,12 @@ public class EncashmentController {
     }
 
     @GetMapping("/pending-mro")
-    public List<Encashment> getPendingMro(
-            @RequestParam(required=false) String category){
-
+    public List<Encashment> getPendingMro(@RequestParam(required = false) String category) {
         return service.getPendingMro(category);
     }
 
     @PostMapping("/add-mro")
-    public void addMro(@RequestBody MroRequest req){
+    public void addMro(@RequestBody MroRequest req) {
         service.saveMro(
             req.getIds(),
             req.getMroNo(),
@@ -66,7 +98,9 @@ public class EncashmentController {
     }
 
     @GetMapping("/mro-details")
-    public List<Encashment> getMroDetails(){
-        return service.getMroDetails();
+    public List<Encashment> getMroDetails(
+        @RequestParam(defaultValue = "all") String category
+    ) {
+        return service.getMroDetails(category);
     }
 }

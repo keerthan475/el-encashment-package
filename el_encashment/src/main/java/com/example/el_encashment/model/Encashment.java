@@ -111,8 +111,11 @@ public class Encashment {
     }
 
     public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
     public Long getEmpId() { return empId; }
     public void setEmpId(Long empId) { this.empId = empId; }
+    public Personnel getPersonnel() { return personnel; }
+    public void setPersonnel(Personnel personnel) { this.personnel = personnel; }
 
     public String getPurpose() { return purpose; }
     public void setPurpose(String purpose) { this.purpose = purpose; }
