@@ -4,6 +4,7 @@ import PrepareBill from "./PrepareBill";
 import AddBillNo from "./pages/AddBillNo";
 import AddDvNo from "./pages/AddDvNo";
 import AddMro from "./pages/AddMro";
+import CgeisFunds from "./pages/CgeisFunds";
 import ShowMroDetails from "./pages/ShowMroDetails";
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { id: "addDv", label: "Add DV No", section: "Operations" },
   { id: "addMro", label: "Add MRO Details", section: "Operations" },
   { id: "showMro", label: "Show MRO Details", section: "Operations" },
+  { id: "cgeis", label: "CGEIS Funds", section: "Operations" },
   { id: "legacy", label: "Legacy Reports", section: "Reports", disabled: true },
   { id: "budget", label: "Budget Estimate", section: "Reports", disabled: true }
 ];
@@ -41,6 +43,10 @@ const pageMeta = {
   showMro: {
     title: "Show MRO Details",
     subtitle: "Review all posted MRO records with billing and DV context."
+  },
+  cgeis: {
+    title: "CGEIS Funds",
+    subtitle: "Manage employee CGEIS salary ranges, prepare bills, add DV details, and open printable reports."
   }
 };
 
@@ -84,6 +90,7 @@ function App() {
     if (activePage === "addDv") return <AddDvNo />;
     if (activePage === "addMro") return <AddMro />;
     if (activePage === "showMro") return <ShowMroDetails />;
+    if (activePage === "cgeis") return <CgeisFunds onExit={() => setActivePage("home")} />;
     return <HomePage />;
   };
 
