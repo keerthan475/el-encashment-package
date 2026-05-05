@@ -252,29 +252,28 @@ public class CgeisService {
 
         String rows = bill.getItems().stream()
             .map(item -> """
-                <tr>
-                  <td>%s</td>
-                  <td>%s</td>
-                  <td class="num">%.2f</td>
-                  <td class="num">%.2f</td>
-                  <td class="num">%d</td>
-                  <td class="num">%.2f</td>
-                </tr>
+                <div class="entry-row">
+                  <div>%s&nbsp;&nbsp;&nbsp; to &nbsp;&nbsp;&nbsp;%s</div>
+                  <div>@%.0f</div>
+                  <div>= Rs.%.2f X %d</div>
+                  <div>=</div>
+                  <div class="num">%.2f</div>
+                </div>
                 """.formatted(
-                formatMonth(item.getFromMonth()),
-                formatMonth(item.getToMonth()),
+                formatLongDate(item.getFromMonth()),
+                formatLongDate(endOfMonth(item.getToMonth())),
                 defaultZero(item.getCgeis()),
                 defaultZero(item.getValue()),
                 item.getTimes(),
-                item.getLineAmount()
+                defaultZero(item.getLineAmount())
             ))
             .collect(Collectors.joining());
 
-        String amountWords = amountInWords(bill.getNetPay().longValue());
+        long roundedTotal = Math.round(defaultZero(bill.getTotalAmount()));
+        String amountWords = amountInWords(roundedTotal);
         Personnel personnel = bill.getPersonnel();
         FinanceData finance = personnel == null ? null : personnel.getFinanceData();
-        double basicPay = finance != null && finance.getBasicPay() != null ? finance.getBasicPay().doubleValue() : 0;
-        double specialPay = finance != null && finance.getSpecialPay() != null ? finance.getSpecialPay().doubleValue() : 0;
+        LocalDate retiredOn = bill.getItems().isEmpty() ? null : endOfMonth(bill.getItems().get(bill.getItems().size() - 1).getToMonth());
 
         return """
             <!doctype html>
@@ -284,106 +283,90 @@ public class CgeisService {
               <title>CGEIS Bill Report</title>
               <style>
                 body { font-family: "Times New Roman", serif; margin: 24px; color: #111; }
-                .page { max-width: 980px; margin: 0 auto; }
+                .page { max-width: 1000px; margin: 0 auto; }
                 .center { text-align: center; }
-                .meta { display:flex; justify-content:space-between; margin-top:12px; font-size:14px; }
-                .lead { margin: 18px 0; font-size: 15px; }
-                .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 8px 30px; margin: 14px 0 22px; font-size:14px; }
-                table { width:100%%; border-collapse:collapse; margin: 12px 0 18px; }
-                th, td { border:1px solid #111; padding:8px; font-size:14px; }
-                th { background:#f3f3f3; }
+                .top-note { display:flex; justify-content:space-between; font-size:14px; margin-bottom:24px; }
+                .title-1 { text-align:center; font-size:24px; font-weight:bold; text-decoration:underline; }
+                .title-2 { text-align:center; font-size:22px; font-weight:bold; text-decoration:underline; margin-top:12px; }
+                .title-3 { text-align:center; font-size:21px; font-weight:bold; text-decoration:underline; margin-top:28px; }
+                .person-block { margin-top:42px; font-size:16px; line-height:1.9; }
+                .claim-block { margin-top:54px; font-size:18px; font-weight:bold; line-height:1.45; }
+                .section-title { margin-top:54px; font-size:18px; font-weight:bold; }
+                .entry-list { margin-top:28px; }
+                .entry-row { display:grid; grid-template-columns: 2.6fr 0.7fr 1.4fr 0.3fr 0.9fr; gap:18px; align-items:baseline; margin: 24px 0; font-size:18px; }
                 .num { text-align:right; }
-                .summary { margin-left:auto; width: 360px; }
-                .summary td:first-child { font-weight: bold; }
-                .footer { display:flex; justify-content:space-between; margin-top: 36px; }
+                .totals { width: 340px; margin-left:auto; margin-top: 28px; font-size:18px; }
+                .totals-row { display:flex; justify-content:space-between; margin: 10px 0; }
+                .words { margin-top: 34px; font-size:18px; font-weight:bold; }
+                .authority { margin-top: 34px; font-size:17px; line-height:1.7; }
                 @media print { body { margin: 8mm; } }
               </style>
             </head>
             <body>
               <div class="page">
-                <div class="center">
-                  <div><strong>DEFENCE RESEARCH & DEVELOPMENT LABORATORY</strong></div>
-                  <div>KANCHANBAGH, HYDERABAD - 58</div>
+                <div class="top-note">
+                  <div>%s</div>
+                  <div>'DEDUCTIONS'</div>
                 </div>
-                <div class="meta">
-                  <div><strong>Bill No:</strong> %s</div>
-                  <div><strong>Bill Date:</strong> %s</div>
-                </div>
-                <div class="lead">
-                  Claim on account of CGEIS Funds in respect of <strong>%s</strong>, Emp Code <strong>%s</strong>.
-                </div>
+                <div class="title-1">UNIT - DEFENCE RESEARCH &amp; DEVELOPMENT LABORATORY</div>
+                <div class="title-2">KANCHANBAGH, HYDERABAD - 500058</div>
+                <div class="title-3">Central Government Employees Group Insurance Scheme - 1980</div>
 
-                <div class="grid">
-                  <div><strong>Division:</strong> %s</div>
-                  <div><strong>Category:</strong> %s</div>
-                  <div><strong>GPF A/C No:</strong> %s</div>
-                  <div><strong>DO Part No:</strong> %s</div>
-                  <div><strong>Basic Pay:</strong> %.2f</div>
-                  <div><strong>DO Part Date:</strong> %s</div>
-                  <div><strong>Special Pay:</strong> %.2f</div>
-                  <div><strong>Total Pay:</strong> %.2f</div>
+                <div class="person-block">
+                  <div>SHRI %s, %s</div>
+                  <div>GPFACCNO : %s</div>
+                  <div>Pers No : %s</div>
+                  <div>Retired On : %s</div>
                 </div>
 
-                <table>
-                  <thead>
-                    <tr>
-                      <th>From Month</th>
-                      <th>To Month</th>
-                      <th>CGEIS</th>
-                      <th>Value</th>
-                      <th>Times</th>
-                      <th>Value x Times</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    %s
-                  </tbody>
-                </table>
-
-                <table class="summary">
-                  <tr><td>Total Amount</td><td class="num">%.2f</td></tr>
-                  <tr><td>Income Tax</td><td class="num">%.2f</td></tr>
-                  <tr><td>Educational Cess (4%%)</td><td class="num">%.2f</td></tr>
-                  <tr><td>Total IT Recovery</td><td class="num">%.2f</td></tr>
-                  <tr><td>Net Pay</td><td class="num">%.2f</td></tr>
-                </table>
-
-                <div><strong>Rupees:</strong> %s only.</div>
-                <div style="margin-top:18px;">
-                  <div>Encl: 1) DO Part / Sanction</div>
-                  <div>2) CGEIS supporting schedule</div>
+                <div class="claim-block">
+                  Claim on account of CGEIS Saving Fund in respect of SHRI %s,
+                  %s, Id number: %s who has retired from Govt. Service w.e.f. %s
+                  notified vide DO Part-II, %s, Date: %s.
                 </div>
 
-                <div class="footer">
-                  <div>Income tax, if any, will be recovered as per rules.</div>
-                  <div class="center">
-                    <div><strong>Sr. ACCOUNTS OFFICER</strong></div>
-                    <div>FOR DIRECTOR</div>
-                  </div>
+                <div class="section-title">(1) CGEIS SAVING FUND:</div>
+
+                <div class="entry-list">
+                  %s
+                </div>
+
+                <div class="totals">
+                  <div class="totals-row"><span>Total :</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>Rounded of Total :</span><span>%.2f</span></div>
+                </div>
+
+                <div class="words">TOTAL IN WORDS: Rupees %s Only</div>
+
+                <div class="authority">
+                  <div><strong>Authority:-</strong></div>
+                  <div style="margin-top:12px;">1. DO Part-II, No. %s, date %s</div>
+                  <div>2. Service Book</div>
+                  <div>3. CERTIFICATE OF SANCTION</div>
                 </div>
               </div>
             </body>
             </html>
             """.formatted(
-            bill.getBillNo(),
-            formatDate(bill.getBillDate()),
+            formatGeneratedStamp(bill.getBillDate()),
             safe(personnel == null ? null : personnel.getName()),
-            safe(personnel == null ? null : personnel.getEmpCode()),
-            safe(personnel == null ? null : personnel.getDivision()),
             categoryLabel(personnel == null ? null : personnel.getDisgType()),
             safe(finance == null ? null : finance.getGpfAccountNo()),
+            safe(personnel == null ? null : personnel.getEmpCode()),
+            formatLongDate(retiredOn),
+            safe(personnel == null ? null : personnel.getName()),
+            categoryLabel(personnel == null ? null : personnel.getDisgType()),
+            safe(personnel == null ? null : personnel.getEmpCode()),
+            formatLongDate(retiredOn),
             safe(bill.getDoPartNumber()),
-            basicPay,
-            formatDate(bill.getDoPartDate()),
-            specialPay,
-            basicPay + specialPay,
+            formatLongDate(bill.getDoPartDate()),
             rows,
-            bill.getTotalAmount(),
-            bill.getItAmount(),
-            bill.getEduCess(),
-            bill.getTotalIt(),
-            bill.getNetPay(),
+            defaultZero(bill.getTotalAmount()),
+            (double) roundedTotal,
             amountWords
+                .toUpperCase(Locale.ENGLISH),
+            safe(bill.getDoPartNumber()),
+            formatLongDate(bill.getDoPartDate())
         );
     }
 
@@ -397,107 +380,134 @@ public class CgeisService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No CGEIS bills found for Bill No");
         }
 
-        String rows = "";
-        double totalIt = 0;
-        double totalEduCess = 0;
-        double grandTotal = 0;
-        int slNo = 1;
-        for (CgeisBill bill : bills) {
-            Personnel p = bill.getPersonnel();
-            FinanceData finance = p == null ? null : p.getFinanceData();
-            rows += """
-                <tr>
-                  <td>%d</td>
-                  <td>%s</td>
-                  <td>%s</td>
-                  <td>%s<br/>%s</td>
-                  <td class="num">%.2f</td>
-                  <td class="num">%.2f</td>
-                  <td class="num">%.2f</td>
-                </tr>
+        CgeisBill bill = bills.get(0);
+        Personnel p = bill.getPersonnel();
+        FinanceData finance = p == null ? null : p.getFinanceData();
+        String rows = bill.getItems().stream()
+            .map(item -> """
+                <div class="entry-row">
+                  <div>%s</div>
+                  <div>to %s</div>
+                  <div>@%.0f Rs.%.2f X %d</div>
+                  <div>=</div>
+                  <div class="num">%.2f</div>
+                </div>
                 """.formatted(
-                slNo++,
-                safe(finance == null ? null : finance.getGpfAccountNo()),
-                "-",
-                safe(p == null ? null : p.getName()),
-                categoryLabel(p == null ? null : p.getDisgType()),
-                bill.getItAmount(),
-                bill.getEduCess(),
-                bill.getTotalIt()
-            );
-            totalIt += bill.getItAmount();
-            totalEduCess += bill.getEduCess();
-            grandTotal += bill.getTotalIt();
-        }
+                formatLongDate(item.getFromMonth()),
+                formatLongDate(endOfMonth(item.getToMonth())),
+                defaultZero(item.getCgeis()),
+                defaultZero(item.getValue()),
+                item.getTimes(),
+                defaultZero(item.getLineAmount())
+            ))
+            .collect(Collectors.joining());
+
+        double total = defaultZero(bill.getTotalAmount());
+        double roundedTotal = Math.round(total);
+        double insuranceFunds = 0;
+        double otherRecovery = 0;
+        double grandTotal = roundedTotal + insuranceFunds;
+        double netAmount = grandTotal - otherRecovery;
+        LocalDate retiredOn = bill.getItems().isEmpty() ? null : endOfMonth(bill.getItems().get(bill.getItems().size() - 1).getToMonth());
 
         return """
             <!doctype html>
             <html>
             <head>
               <meta charset="UTF-8" />
-              <title>CGEIS IT Recovery Schedule</title>
+              <title>CGEIS Sanction Report</title>
               <style>
                 body { font-family: "Times New Roman", serif; margin: 24px; color: #111; }
-                .page { max-width: 980px; margin: 0 auto; }
+                .page { max-width: 1000px; margin: 0 auto; }
+                .top-note { display:flex; justify-content:space-between; font-size:14px; margin-bottom:24px; }
                 .center { text-align:center; }
-                table { width:100%%; border-collapse:collapse; margin-top:20px; }
-                th, td { border:1px solid #111; padding:8px; font-size:14px; }
-                th { background:#f3f3f3; }
+                .title-1 { text-align:center; font-size:24px; font-weight:bold; text-decoration:underline; }
+                .title-2 { text-align:center; font-size:22px; font-weight:bold; text-decoration:underline; }
+                .title-3 { text-align:center; font-size:22px; font-weight:bold; text-decoration:underline; margin-top:26px; }
+                .para { margin-top: 48px; font-size:18px; line-height:1.5; text-align:justify; }
+                .section-title { margin-top:44px; font-size:18px; font-weight:bold; }
+                .entry-list { margin-top:24px; width: 88%%; }
+                .entry-row { display:grid; grid-template-columns: 1.4fr 0.9fr 1.6fr 0.3fr 0.8fr; gap:16px; margin: 12px 0; font-size:17px; }
                 .num { text-align:right; }
-                .footer { display:flex; justify-content:space-between; margin-top:30px; }
+                .totals { width: 330px; margin-left:auto; margin-top: 16px; font-size:17px; }
+                .totals-row { display:flex; justify-content:space-between; margin: 8px 0; }
+                .govt { margin-top: 52px; font-size:18px; line-height:1.7; }
+                .sign { margin-top: 48px; width: 320px; margin-left:auto; text-align:center; font-size:18px; line-height:1.7; }
               </style>
             </head>
             <body>
               <div class="page">
-                <div class="center">
-                  <div><strong>UNIT ORG, HYDERABAD</strong></div>
-                  <div><strong>INCOME TAX RECOVERY SCHEDULE</strong></div>
-                  <div>(CGEIS Funds)</div>
+                <div class="top-note">
+                  <div>%s</div>
+                  <div>'SANCTION'</div>
                 </div>
-                <div class="center" style="margin-top:16px;">
-                  Recovery schedule on account of income tax in respect of the undermentioned officers/staff for Bill No <strong>%s</strong>.
+                <div class="title-1">DEFENCE RESEARCH AND DEVELOPMENT LABORATORY</div>
+                <div class="title-2">KANCHANBAGH, HYDERABAD - 500058</div>
+                <div class="title-3">SANCTION</div>
+
+                <div class="para">
+                  Under the provisions of Para 118 of Government of India, Ministry of Finance
+                  (Department of Expenditure) OM No.F/15(3)/78 WIP dated 31<sup>st</sup> October 1980
+                  as reproduced in CPRO 27/81 sanction is hereby accorded for the payment of
+                  Rs. %.0f/- Rupees %s Only Saving Fund of Central Government Employees Group
+                  Insurance Scheme to SHRI %s, GPFACNO %s, TO, Id number: %s, who has retired
+                  from Govt. Service w.e.f. %s notified vide DO Part-II, No.%s, dated: %s for your
+                  audit and payment.
                 </div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Sl No</th>
-                      <th>GPF A/C No</th>
-                      <th>PAN</th>
-                      <th>Name & Designation</th>
-                      <th>Income Tax</th>
-                      <th>Educational Cess (4%%)</th>
-                      <th>Total Income Tax</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    %s
-                    <tr>
-                      <td colspan="4"><strong>Total</strong></td>
-                      <td class="num"><strong>%.2f</strong></td>
-                      <td class="num"><strong>%.2f</strong></td>
-                      <td class="num"><strong>%.2f</strong></td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div><strong>Rupees:</strong> %s only.</div>
-                <div class="footer">
-                  <div></div>
-                  <div class="center">
-                    <div><strong>ACCOUNTS</strong></div>
-                    <div>FOR DIRECTOR</div>
-                    <div>DRDL HYD</div>
-                  </div>
+
+                <div class="section-title">GROUP INSURANCE (SAVING FUND):</div>
+
+                <div class="entry-list">
+                  %s
+                </div>
+
+                <div class="totals">
+                  <div class="totals-row"><span>TOTAL</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>Rounded of TOTAL</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>Cgeis Insurance Funds</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>GRAND TOTAL</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>Other Recovery</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>NET AMOUNT</span><span>%.2f</span></div>
+                </div>
+
+                <div class="govt">
+                  <div>No.DRDL/FIN/CGOS/CGEIS/%s/%s</div>
+                  <div style="margin-top:28px;">Government of India</div>
+                  <div>Ministry of Defence</div>
+                  <div>Defence Research &amp; Development Laboratory</div>
+                  <div>HYDERABAD-500058</div>
+                  <div style="margin-top:28px;">Date : %s</div>
+                </div>
+
+                <div class="sign">
+                  <div>Yours Faithfully</div>
+                  <div style="margin-top:70px;"><strong>CFA</strong></div>
+                  <div><strong>Senior Accounts Officer</strong></div>
+                  <div><strong>For Director, DRDL</strong></div>
                 </div>
               </div>
             </body>
             </html>
             """.formatted(
-            sanitizedBillNo,
+            formatGeneratedStamp(bill.getBillDate()),
+            roundedTotal,
+            amountInWords(Math.round(roundedTotal)).toUpperCase(Locale.ENGLISH),
+            safe(p == null ? null : p.getName()),
+            safe(finance == null ? null : finance.getGpfAccountNo()),
+            safe(p == null ? null : p.getEmpCode()),
+            formatLongDate(retiredOn),
+            safe(bill.getDoPartNumber()),
+            formatLongDate(bill.getDoPartDate()),
             rows,
-            round(totalIt),
-            round(totalEduCess),
             round(grandTotal),
-            amountInWords(Math.round(grandTotal))
+            roundedTotal,
+            insuranceFunds,
+            grandTotal,
+            otherRecovery,
+            netAmount,
+            safe(bill.getBillNo()),
+            safe(bill.getDvNo()),
+            formatLongDate(bill.getBillDate())
         );
     }
 
@@ -581,6 +591,19 @@ public class CgeisService {
 
     private String formatMonth(LocalDate date) {
         return date == null ? "-" : YearMonth.from(date).format(MONTH_LABEL);
+    }
+
+    private String formatLongDate(LocalDate date) {
+        return date == null ? "-" : date.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH));
+    }
+
+    private LocalDate endOfMonth(LocalDate date) {
+        return date == null ? null : YearMonth.from(date).atEndOfMonth();
+    }
+
+    private String formatGeneratedStamp(LocalDate date) {
+        LocalDate value = date == null ? LocalDate.now() : date;
+        return value.format(DateTimeFormatter.ofPattern("M/d/yy", Locale.ENGLISH)) + ", 3:10 PM";
     }
 
     private String safe(String value) {

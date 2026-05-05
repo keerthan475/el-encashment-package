@@ -2,16 +2,22 @@ package com.example.el_encashment.service;
 
 import com.example.el_encashment.model.DvUpdateRequest;
 import com.example.el_encashment.model.Encashment;
+import com.example.el_encashment.model.FinanceData;
+import com.example.el_encashment.model.Personnel;
 import com.example.el_encashment.repository.EncashmentRepository;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class EncashmentService {
+
+    private static final DateTimeFormatter REPORT_DATE = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 
     private final EncashmentRepository repository;
 
@@ -90,6 +96,10 @@ public class EncashmentService {
         }
 
         return repository.getBilledRecords(resolveTypes(category));
+    }
+
+    public List<Encashment> getReportRecords(String category) {
+        return getBilledRecords(category);
     }
 
     public void updateBillDetails(List<Long> ids, String billNo, LocalDate billDate) {
@@ -259,6 +269,274 @@ public class EncashmentService {
         }
 
         return repository.getMroDetails(resolveTypes(category));
+    }
+
+    public String buildBillReportHtml(Long id) {
+        Encashment encashment = getPreparedRecord(id);
+        if (encashment.getBillNo() == null || encashment.getBillNo().isBlank()) {
+            throw badRequest("Bill number is not available for this record");
+        }
+
+        Personnel personnel = encashment.getPersonnel();
+        FinanceData finance = personnel == null ? null : personnel.getFinanceData();
+        double basicPay = finance != null && finance.getBasicPay() != null ? finance.getBasicPay().doubleValue() : 0;
+        double specialPay = finance != null && finance.getSpecialPay() != null ? finance.getSpecialPay().doubleValue() : 0;
+        double totalPay = basicPay + specialPay;
+
+        String claimLabel = claimLabel(encashment.getPurpose());
+        String amountWords = amountInWords(Math.round(encashment.getGrandTotal()));
+        String otherRecoveryLine = formatOtherRecoveryLine(encashment);
+
+        return """
+            <!doctype html>
+            <html>
+            <head>
+              <meta charset="UTF-8" />
+              <title>EL Encashment Bill Report</title>
+              <style>
+                body { font-family: "Times New Roman", serif; margin: 24px; color: #111; }
+                .page { max-width: 980px; margin: 0 auto; }
+                .center { text-align: center; }
+                .meta { display:flex; justify-content:space-between; align-items:flex-start; margin-top: 8px; font-size:14px; }
+                .lead { margin: 18px 0; font-size: 15px; line-height: 1.5; }
+                .details { display:grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; font-size:14px; margin-bottom: 20px; }
+                .amount-box { width: 420px; margin-top: 18px; }
+                .amount-row { display:flex; justify-content:space-between; padding: 4px 0; font-size:14px; }
+                .formula { margin: 12px 0 10px; font-size:14px; }
+                .summary { margin-top: 16px; width: 520px; }
+                .summary-row { display:flex; justify-content:space-between; padding: 3px 0; font-size:14px; }
+                .netpay { margin-top: 10px; border-top:1px solid #111; padding-top:8px; font-weight:bold; }
+                .rupees { margin-top: 18px; font-size: 14px; }
+                .encl { margin-top: 18px; font-size:14px; }
+                .footer { display:flex; justify-content:space-between; margin-top: 44px; font-size:14px; }
+                .num { min-width: 120px; text-align: right; }
+                @media print { body { margin: 8mm; } }
+              </style>
+            </head>
+            <body>
+              <div class="page">
+                <div class="center">
+                  <div><strong>DEFENCE RESEARCH & DEVELOPMENT LABORATORY</strong></div>
+                  <div>KANCHANBAGH, HYDERABAD - 58</div>
+                </div>
+
+                <div class="meta">
+                  <div>
+                    <div><strong>Bill No.</strong> %s</div>
+                    <div><strong>Bill Date:</strong> %s</div>
+                  </div>
+                  <div><strong>Unit Code:</strong> DRDL/HYD</div>
+                </div>
+
+                <div class="lead">
+                  Claim on account of Encashment of leave on <strong>%s</strong> in respect of
+                  <strong> %s</strong>, ID No: <strong>%s</strong>, Pers No: <strong>%s</strong>
+                  as notified vide DO Part-I No. <strong>%s</strong> dated <strong>%s</strong>.
+                </div>
+
+                <div class="details">
+                  <div><strong>Event Date:</strong> %s</div>
+                  <div><strong>Purpose:</strong> %s</div>
+                  <div><strong>PF A/C No:</strong> %s</div>
+                  <div><strong>Division:</strong> %s</div>
+                  <div><strong>Category:</strong> %s</div>
+                  <div><strong>Block Period:</strong> %s</div>
+                  <div><strong>Basic Pay:</strong> %.2f</div>
+                  <div><strong>Special Pay:</strong> %.2f</div>
+                  <div><strong>Total Pay:</strong> %.2f</div>
+                  <div><strong>EL Days:</strong> %d</div>
+                  <div><strong>HPL Days:</strong> %d</div>
+                  <div><strong>IT Recovery:</strong> %.2f</div>
+                </div>
+
+                <div class="amount-box">
+                  <div class="formula"><strong>EL Amount</strong> <span class="num">%.2f</span></div>
+                  <div class="formula"><strong>HPL Amount</strong> <span class="num">%.2f</span></div>
+                </div>
+
+                <div class="summary">
+                  <div class="summary-row"><span>EL Amount</span><span class="num">Rs. %.2f</span></div>
+                  <div class="summary-row"><span>HPL Amount</span><span class="num">Rs. %.2f</span></div>
+                  <div class="summary-row"><span>IT Recovery</span><span class="num">Rs. %.2f</span></div>
+                  <div class="summary-row"><span>Income Tax</span><span class="num">Rs. %.2f</span></div>
+                  <div class="summary-row"><span>Educational Cess : 4%% on Income Tax</span><span class="num">Rs. %.2f</span></div>
+                  <div class="summary-row"><span>%s</span><span class="num">Rs. %.2f</span></div>
+                  <div class="summary-row netpay"><span>NET PAY</span><span class="num">Rs. %.2f</span></div>
+                </div>
+
+                <div class="rupees"><strong>Rupees:</strong> %s only.</div>
+
+                <div class="encl">
+                  <div>Encl:-</div>
+                  <div>1) DO Part-I No. %s dated %s</div>
+                  <div>2) Certificate of Sanction</div>
+                  <div>3) Certificate</div>
+                </div>
+
+                <div style="margin-top:12px; font-size:14px;">
+                  The income tax on the bill will be consolidated along with income tax of other bills and the same will be recovered subsequently in remaining regular pay bills of the financial year.
+                </div>
+
+                <div class="footer">
+                  <div></div>
+                  <div class="center">
+                    <div><strong>Sr. ACCOUNTS OFFICER</strong></div>
+                    <div>FOR DIRECTOR</div>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            """.formatted(
+            safe(encashment.getBillNo()),
+            formatDate(encashment.getBillDate()),
+            claimLabel,
+            safe(personnel == null ? null : personnel.getName()),
+            safe(personnel == null ? null : personnel.getEmpCode()),
+            safe(personnel == null ? null : personnel.getEmpCode()),
+            safe(encashment.getDoPartNumber()),
+            formatDate(encashment.getDoPartDate()),
+            formatDate(encashment.getEventDate()),
+            safe(encashment.getPurpose()),
+            safe(finance == null ? null : finance.getGpfAccountNo()),
+            safe(personnel == null ? null : personnel.getDivision()),
+            categoryLabel(personnel == null ? null : personnel.getDisgType()),
+            safe(encashment.getBlockPeriod()),
+            basicPay,
+            specialPay,
+            totalPay,
+            encashment.getElDays(),
+            encashment.getHplDays(),
+            encashment.getItRecovery(),
+            encashment.getElAmount(),
+            encashment.getHplAmount(),
+            encashment.getElAmount(),
+            encashment.getHplAmount(),
+            encashment.getItRecovery(),
+            encashment.getItAmount(),
+            encashment.getEduCess(),
+            otherRecoveryLine,
+            encashment.getOtherRecovery() + encashment.getOtherTaxable(),
+            encashment.getGrandTotal(),
+            amountWords,
+            safe(encashment.getDoPartNumber()),
+            formatDate(encashment.getDoPartDate())
+        );
+    }
+
+    public String buildItScheduleHtml(String billNo) {
+        String sanitizedBillNo = trimToNull(billNo);
+        if (sanitizedBillNo == null) {
+            throw badRequest("Bill No is required");
+        }
+
+        List<Encashment> records = repository.findDetailedByBillNo(sanitizedBillNo);
+        if (records.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No EL encashment records found for Bill No");
+        }
+
+        StringBuilder rows = new StringBuilder();
+        double totalIncomeTax = 0;
+        double totalEduCess = 0;
+        double totalOverall = 0;
+        int slNo = 1;
+
+        for (Encashment encashment : records) {
+            Personnel personnel = encashment.getPersonnel();
+            FinanceData finance = personnel == null ? null : personnel.getFinanceData();
+            rows.append("""
+                <tr>
+                  <td>%d</td>
+                  <td>%s</td>
+                  <td>%s</td>
+                  <td>%s<br/>%s</td>
+                  <td class="num">%.2f</td>
+                  <td class="num">%.2f</td>
+                  <td class="num">%.2f</td>
+                </tr>
+                """.formatted(
+                slNo++,
+                safe(finance == null ? null : finance.getGpfAccountNo()),
+                "-",
+                safe(personnel == null ? null : personnel.getName()),
+                categoryLabel(personnel == null ? null : personnel.getDisgType()),
+                encashment.getItAmount(),
+                encashment.getEduCess(),
+                encashment.getItAmount() + encashment.getEduCess()
+            ));
+            totalIncomeTax += encashment.getItAmount();
+            totalEduCess += encashment.getEduCess();
+            totalOverall += encashment.getItAmount() + encashment.getEduCess();
+        }
+
+        return """
+            <!doctype html>
+            <html>
+            <head>
+              <meta charset="UTF-8" />
+              <title>EL Encashment IT Recovery Schedule</title>
+              <style>
+                body { font-family: "Times New Roman", serif; margin: 24px; color: #111; }
+                .page { max-width: 980px; margin: 0 auto; }
+                .center { text-align:center; }
+                table { width:100%%; border-collapse:collapse; margin-top:20px; }
+                th, td { border:1px solid #111; padding:8px; font-size:14px; }
+                th { background:#f3f3f3; }
+                .num { text-align:right; }
+                .footer { display:flex; justify-content:space-between; margin-top:30px; }
+              </style>
+            </head>
+            <body>
+              <div class="page">
+                <div class="center">
+                  <div><strong>UNIT DRDL, HYDERABAD</strong></div>
+                  <div><strong>INCOME TAX RECOVERY SCHEDULE</strong></div>
+                  <div>(EL - Encashment)</div>
+                </div>
+                <div class="center" style="margin-top:16px;">
+                  RECOVERY SCHEDULE ON ACCOUNT OF INCOME TAX IN RESPECT OF UNDERMENTIONED OFFICERS/STAFF:
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Sl. No.</th>
+                      <th>GPF A/C No</th>
+                      <th>PAN Number</th>
+                      <th>Name & Designation</th>
+                      <th>Income Tax (Rs.)</th>
+                      <th>Educational Cess @ 4%% on Income Tax (Rs.)</th>
+                      <th>Total Income Tax (Rs.)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    %s
+                    <tr>
+                      <td colspan="4"><strong>Total</strong></td>
+                      <td class="num"><strong>%.2f</strong></td>
+                      <td class="num"><strong>%.2f</strong></td>
+                      <td class="num"><strong>%.2f</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div><strong>Rupees:</strong> %s only.</div>
+                <div class="footer">
+                  <div></div>
+                  <div class="center">
+                    <div><strong>ACCOUNTS</strong></div>
+                    <div>FOR DIRECTOR</div>
+                    <div>DRDL HYD</div>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            """.formatted(
+            rows,
+            round(totalIncomeTax),
+            round(totalEduCess),
+            round(totalOverall),
+            amountInWords(Math.round(totalOverall))
+        );
     }
 
     private void validatePreparedRecord(Encashment encashment) {
@@ -483,6 +761,80 @@ public class EncashmentService {
 
     private boolean sumEquals(double first, double second) {
         return Math.abs(first - second) < 0.01;
+    }
+
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    private String formatDate(LocalDate date) {
+        return date == null ? "-" : date.format(REPORT_DATE);
+    }
+
+    private String safe(String value) {
+        return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private String categoryLabel(Integer type) {
+        if (type == null) return "-";
+        return type == 1 ? "Officer" : "Staff";
+    }
+
+    private String claimLabel(String purpose) {
+        if ("Retirement".equalsIgnoreCase(purpose) || "Superannuation".equalsIgnoreCase(purpose)) {
+            return "SUPERANNUATION";
+        }
+        if ("Home_Town".equalsIgnoreCase(purpose) || "All_India".equalsIgnoreCase(purpose)) {
+            return "LTC";
+        }
+        return safe(purpose).toUpperCase(Locale.ENGLISH);
+    }
+
+    private String formatOtherRecoveryLine(Encashment encashment) {
+        String recoveryRemark = trimToNull(encashment.getOtherRemark());
+        String taxableRemark = trimToNull(encashment.getOtherTaxableRemark());
+        StringBuilder label = new StringBuilder("Other Recovery");
+        if (recoveryRemark != null) {
+            label.append(" (").append(recoveryRemark).append(")");
+        }
+        if (encashment.getOtherTaxable() > 0) {
+            label.append(" + Other Recovery Taxable");
+            if (taxableRemark != null) {
+                label.append(" (").append(taxableRemark).append(")");
+            }
+        }
+        return label.toString();
+    }
+
+    private String amountInWords(long number) {
+        if (number == 0) {
+            return "Zero";
+        }
+
+        String[] units = {"", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+            "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"};
+        String[] tens = {"", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"};
+
+        return convertIndian(number, units, tens).trim().replaceAll("\\s+", " ");
+    }
+
+    private String convertIndian(long number, String[] units, String[] tens) {
+        if (number < 20) {
+            return units[(int) number];
+        }
+        if (number < 100) {
+            return tens[(int) number / 10] + (number % 10 != 0 ? " " + convertIndian(number % 10, units, tens) : "");
+        }
+        if (number < 1000) {
+            return units[(int) number / 100] + " Hundred" + (number % 100 != 0 ? " " + convertIndian(number % 100, units, tens) : "");
+        }
+        if (number < 100000) {
+            return convertIndian(number / 1000, units, tens) + " Thousand" + (number % 1000 != 0 ? " " + convertIndian(number % 1000, units, tens) : "");
+        }
+        if (number < 10000000) {
+            return convertIndian(number / 100000, units, tens) + " Lakh" + (number % 100000 != 0 ? " " + convertIndian(number % 100000, units, tens) : "");
+        }
+        return convertIndian(number / 10000000, units, tens) + " Crore" + (number % 10000000 != 0 ? " " + convertIndian(number % 10000000, units, tens) : "");
     }
 
     private ResponseStatusException badRequest(String message) {

@@ -33,6 +33,16 @@ public interface EncashmentRepository extends JpaRepository<Encashment, Long> {
     FROM Encashment e
     LEFT JOIN FETCH e.personnel p
     LEFT JOIN FETCH p.financeData
+    WHERE e.billNo = :billNo
+    ORDER BY e.billDate DESC, e.createdDate DESC, e.id DESC
+    """)
+    List<Encashment> findDetailedByBillNo(String billNo);
+
+    @Query("""
+    SELECT DISTINCT e
+    FROM Encashment e
+    LEFT JOIN FETCH e.personnel p
+    LEFT JOIN FETCH p.financeData
     WHERE e.billNo IS NOT NULL
     AND e.dvNo IS NULL
     ORDER BY e.billDate DESC, e.createdDate DESC, e.id DESC

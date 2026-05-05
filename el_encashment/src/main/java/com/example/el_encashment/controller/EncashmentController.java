@@ -6,6 +6,8 @@ import com.example.el_encashment.model.Encashment;
 import com.example.el_encashment.model.MroRequest;
 import com.example.el_encashment.service.EncashmentService;
 import java.util.List;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -102,5 +104,20 @@ public class EncashmentController {
         @RequestParam(defaultValue = "all") String category
     ) {
         return service.getMroDetails(category);
+    }
+
+    @GetMapping("/reports")
+    public List<Encashment> getReportRecords(@RequestParam(defaultValue = "all") String category) {
+        return service.getReportRecords(category);
+    }
+
+    @GetMapping(value = "/bill-report/{id}", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> getBillReport(@PathVariable Long id) {
+        return ResponseEntity.ok(service.buildBillReportHtml(id));
+    }
+
+    @GetMapping(value = "/it-report", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> getItReport(@RequestParam String billNo) {
+        return ResponseEntity.ok(service.buildItScheduleHtml(billNo));
     }
 }

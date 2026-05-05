@@ -6,6 +6,7 @@ import AddDvNo from "./pages/AddDvNo";
 import AddMro from "./pages/AddMro";
 import CgeisFunds from "./pages/CgeisFunds";
 import ShowMroDetails from "./pages/ShowMroDetails";
+import ElReports from "./pages/ElReports";
 
 const navItems = [
   { id: "home", label: "Home", section: "Workspace" },
@@ -15,7 +16,7 @@ const navItems = [
   { id: "addMro", label: "Add MRO Details", section: "Operations" },
   { id: "showMro", label: "Show MRO Details", section: "Operations" },
   { id: "cgeis", label: "CGEIS Funds", section: "Operations" },
-  { id: "legacy", label: "Legacy Reports", section: "Reports", disabled: true },
+  { id: "reports", label: "Reports", section: "Reports" },
   { id: "budget", label: "Budget Estimate", section: "Reports", disabled: true }
 ];
 
@@ -47,6 +48,10 @@ const pageMeta = {
   cgeis: {
     title: "CGEIS Funds",
     subtitle: "Manage employee CGEIS salary ranges, prepare bills, add DV details, and open printable reports."
+  },
+  reports: {
+    title: "Reports",
+    subtitle: "Open EL Encashment bill and IT recovery schedule reports in a new tab."
   }
 };
 
@@ -90,6 +95,7 @@ function App() {
     if (activePage === "addDv") return <AddDvNo />;
     if (activePage === "addMro") return <AddMro />;
     if (activePage === "showMro") return <ShowMroDetails />;
+    if (activePage === "reports") return <ElReports />;
     if (activePage === "cgeis") return <CgeisFunds onExit={() => setActivePage("home")} />;
     return <HomePage />;
   };
@@ -116,6 +122,7 @@ function App() {
                     key={item.id}
                     type="button"
                     className={`sidebar-link ${activePage === item.id ? "is-active" : ""}`}
+                    onMouseDown={() => !item.disabled && setActivePage(item.id)}
                     onClick={() => !item.disabled && setActivePage(item.id)}
                     disabled={item.disabled}
                   >
