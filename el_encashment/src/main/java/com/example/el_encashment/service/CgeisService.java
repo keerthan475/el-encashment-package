@@ -7,8 +7,10 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class CgeisService {
         if (rows.isEmpty()) {
             return grouped;
         }
+        Map<String, CgeisBillItem> savedItems = loadSavedItemsByRange(empId);
 
         LocalDate from = rows.get(0).getMonthYear();
         LocalDate to = from;
@@ -51,14 +54,14 @@ public class CgeisService {
             ) {
                 to = current.getMonthYear();
             } else {
-                grouped.add(new CgeisGroupedSalaryRow(from, to, cgeis, null));
+                grouped.add(buildGroupedRow(from, to, cgeis, savedItems));
                 from = current.getMonthYear();
                 to = current.getMonthYear();
                 cgeis = current.getCgeis();
             }
         }
 
-        grouped.add(new CgeisGroupedSalaryRow(from, to, cgeis, null));
+        grouped.add(buildGroupedRow(from, to, cgeis, savedItems));
         return grouped;
     }
 
@@ -529,6 +532,43 @@ public class CgeisService {
 
     private boolean isAll(String category) {
         return category == null || "all".equalsIgnoreCase(category);
+    }
+
+    private CgeisGroupedSalaryRow buildGroupedRow(
+        LocalDate from,
+        LocalDate to,
+        Double cgeis,
+        Map<String, CgeisBillItem> savedItems
+    ) {
+        CgeisBillItem savedItem = savedItems.get(buildRangeKey(from, to, cgeis));
+        return new CgeisGroupedSalaryRow(
+            from,
+            to,
+            cgeis,
+            savedItem == null ? null : savedItem.getValue(),
+            savedItem == null ? null : savedItem.getTimes()
+        );
+    }
+
+    private Map<String, CgeisBillItem> loadSavedItemsByRange(Long empId) {
+        Map<String, CgeisBillItem> savedItems = new HashMap<>();
+        for (CgeisBill bill : billRepository.findDetailedByEmpId(empId)) {
+            for (CgeisBillItem item : bill.getItems()) {
+                savedItems.putIfAbsent(
+                    buildRangeKey(item.getFromMonth(), item.getToMonth(), item.getCgeis()),
+                    item
+                );
+            }
+        }
+        return savedItems;
+    }
+
+    private String buildRangeKey(LocalDate from, LocalDate to, Double cgeis) {
+        return "%s|%s|%.4f".formatted(
+            from,
+            to,
+            defaultZero(cgeis)
+        );
     }
 
     private List<Integer> resolveTypes(String category) {

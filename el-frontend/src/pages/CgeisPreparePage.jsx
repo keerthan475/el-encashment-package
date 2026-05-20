@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiErrorMessage } from "../utils/api";
 import { formatAmount, formatDate, formatDisgType } from "../utils/formatters";
 
 const emptyRangeForm = { fromMonth: "", toMonth: "", cgeis: "" };
@@ -22,26 +23,38 @@ function CgeisPreparePage() {
   const [statusType, setStatusType] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddRangeOpen, setIsAddRangeOpen] = useState(false);
 
   const showStatus = (type, message) => {
     setStatusType(type);
     setStatusMessage(message);
   };
 
+  const clearStatus = () => {
+    setStatusType("");
+    setStatusMessage("");
+  };
+
   const loadEmployeeData = useCallback(async (empId) => {
     if (!empId) return;
     setIsLoading(true);
+    clearStatus();
     try {
       const [salaryResponse, historyResponse] = await Promise.all([
         fetch(`http://localhost:8080/api/cgeis/salary-grouped/${empId}`),
         fetch(`http://localhost:8080/api/cgeis/bill-history/${empId}`)
       ]);
-      if (!salaryResponse.ok || !historyResponse.ok) throw new Error("Unable to load CGEIS details");
+      if (!salaryResponse.ok) {
+        throw new Error(await getApiErrorMessage(salaryResponse, "Unable to load CGEIS details"));
+      }
+      if (!historyResponse.ok) {
+        throw new Error(await getApiErrorMessage(historyResponse, "Unable to load CGEIS details"));
+      }
       const salaryData = await salaryResponse.json();
       const historyData = await historyResponse.json();
       setSalaryRows(salaryData);
       setBillHistory(historyData);
-      setTimesMap(Object.fromEntries(salaryData.map((row) => [buildRowKey(row), ""])));
+      setTimesMap(Object.fromEntries(salaryData.map((row) => [buildRowKey(row), row.times ?? ""])));
       setValueMap(Object.fromEntries(salaryData.map((row) => [buildRowKey(row), row.value ?? ""])));
     } catch (error) {
       setSalaryRows([]);
@@ -109,6 +122,7 @@ function CgeisPreparePage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     try {
+      clearStatus();
       const response = await fetch("http://localhost:8080/api/cgeis/salary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,8 +133,9 @@ function CgeisPreparePage() {
           cgeis: Number(rangeForm.cgeis)
         })
       });
-      if (!response.ok) throw new Error(await response.text() || "Unable to add salary range");
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to add salary range"));
       setRangeForm(emptyRangeForm);
+      setIsAddRangeOpen(false);
       showStatus("success", "CGEIS range added successfully");
       await loadEmployeeData(selectedEmployee.id);
     } catch (error) {
@@ -131,12 +146,13 @@ function CgeisPreparePage() {
   const deleteRange = async (row) => {
     if (!selectedEmployee) return;
     try {
+      clearStatus();
       const response = await fetch("http://localhost:8080/api/cgeis/salary", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ empId: selectedEmployee.id, fromMonth: row.fromMonth, toMonth: row.toMonth })
       });
-      if (!response.ok) throw new Error(await response.text() || "Unable to delete range");
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to delete range"));
       showStatus("success", "CGEIS range deleted successfully");
       await loadEmployeeData(selectedEmployee.id);
     } catch (error) {
@@ -151,6 +167,9 @@ function CgeisPreparePage() {
     if (!billForm.doPartDate) nextErrors.doPartDate = "Select DO Part date";
     if (!/^\d{3}$/.test(billForm.billNo.trim())) nextErrors.billNo = "Bill No must be exactly 3 digits";
     if (!billForm.billDate) nextErrors.billDate = "Select bill date";
+    if (billForm.doPartDate && billForm.billDate && billForm.doPartDate > billForm.billDate) {
+      nextErrors.doPartDate = "DO Part date cannot be after bill date";
+    }
     if (Number(billForm.itAmount || 0) < 0) nextErrors.itAmount = "IT amount cannot be negative";
     if (selectedItems.length === 0) nextErrors.selectedRows = "Enter Times for at least one CGEIS row";
     if (selectedItems.some((item) => !item.value || Number(item.value) <= 0)) nextErrors.selectedValue = "Enter valid value for each selected row";
@@ -158,6 +177,7 @@ function CgeisPreparePage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     try {
+      clearStatus();
       const response = await fetch("http://localhost:8080/api/cgeis/bill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -177,7 +197,7 @@ function CgeisPreparePage() {
           }))
         })
       });
-      if (!response.ok) throw new Error(await response.text() || "Unable to save CGEIS bill");
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to save CGEIS bill"));
       setBillForm(emptyBillForm);
       showStatus("success", "CGEIS bill saved successfully");
       await loadEmployeeData(selectedEmployee.id);
@@ -254,27 +274,32 @@ function CgeisPreparePage() {
               <h3 className="section-title">Add CGEIS Range</h3>
               <p className="section-subtitle">Monthly values are stored in DB and grouped automatically in the table below.</p>
             </div>
+            <button type="button" onClick={() => setIsAddRangeOpen((prev) => !prev)}>
+              {isAddRangeOpen ? "Hide Range Form" : "Add CGEIS Range"}
+            </button>
           </div>
-          <div className="form-grid">
-            <div>
-              <label>From Month</label>
-              <input type="month" value={rangeForm.fromMonth ? rangeForm.fromMonth.slice(0, 7) : ""} onChange={(e) => setRangeForm((prev) => ({ ...prev, fromMonth: `${e.target.value}-01` }))} />
-              {errors.fromMonth && <p className="error-text">{errors.fromMonth}</p>}
+          {isAddRangeOpen && (
+            <div className="form-grid">
+              <div>
+                <label>From Month</label>
+                <input type="month" value={rangeForm.fromMonth ? rangeForm.fromMonth.slice(0, 7) : ""} onChange={(e) => setRangeForm((prev) => ({ ...prev, fromMonth: `${e.target.value}-01` }))} />
+                {errors.fromMonth && <p className="error-text">{errors.fromMonth}</p>}
+              </div>
+              <div>
+                <label>To Month</label>
+                <input type="month" value={rangeForm.toMonth ? rangeForm.toMonth.slice(0, 7) : ""} onChange={(e) => setRangeForm((prev) => ({ ...prev, toMonth: `${e.target.value}-01` }))} />
+                {errors.toMonth && <p className="error-text">{errors.toMonth}</p>}
+              </div>
+              <div>
+                <label>CGEIS</label>
+                <input type="number" value={rangeForm.cgeis} onChange={(e) => setRangeForm((prev) => ({ ...prev, cgeis: e.target.value }))} />
+                {errors.cgeis && <p className="error-text">{errors.cgeis}</p>}
+              </div>
+              <div style={{ alignSelf: "end" }}>
+                <button onClick={addRange}>Add New Range</button>
+              </div>
             </div>
-            <div>
-              <label>To Month</label>
-              <input type="month" value={rangeForm.toMonth ? rangeForm.toMonth.slice(0, 7) : ""} onChange={(e) => setRangeForm((prev) => ({ ...prev, toMonth: `${e.target.value}-01` }))} />
-              {errors.toMonth && <p className="error-text">{errors.toMonth}</p>}
-            </div>
-            <div>
-              <label>CGEIS</label>
-              <input type="number" value={rangeForm.cgeis} onChange={(e) => setRangeForm((prev) => ({ ...prev, cgeis: e.target.value }))} />
-              {errors.cgeis && <p className="error-text">{errors.cgeis}</p>}
-            </div>
-            <div style={{ alignSelf: "end" }}>
-              <button onClick={addRange}>Add New Range</button>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -315,7 +340,15 @@ function CgeisPreparePage() {
                       <td>{times > 0 && Number(valueMap[key] || 0) > 0 ? formatAmount(Number(valueMap[key]) * times) : "-"}</td>
                       <td>
                         <div className="actions-row">
-                          <button type="button" onClick={() => setRangeForm({ fromMonth: row.toMonth, toMonth: row.toMonth, cgeis: row.cgeis || "" })}>Add New</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRangeForm({ fromMonth: row.toMonth, toMonth: row.toMonth, cgeis: row.cgeis || "" });
+                              setIsAddRangeOpen(true);
+                            }}
+                          >
+                            Add New
+                          </button>
                           <button type="button" onClick={() => deleteRange(row)} style={{ background: "linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)" }}>Delete</button>
                         </div>
                       </td>
