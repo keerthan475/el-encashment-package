@@ -3,7 +3,7 @@ import { getApiErrorMessage } from "../utils/api";
 import { formatAmount, formatDate, formatDisgType } from "../utils/formatters";
 
 const emptyRangeForm = { fromMonth: "", toMonth: "", cgeis: "" };
-const emptyBillForm = { doPartNumber: "", doPartDate: "", billNo: "", billDate: "", itAmount: "" };
+const emptyBillForm = { reason: "", doPartNumber: "", doPartDate: "", billNo: "", billDate: "", billAmount: "", insuranceCoverage: "", otherRecovery: "", remarks: "" };
 
 const buildRowKey = (row) => `${row.fromMonth}_${row.toMonth}_${row.cgeis}`;
 
@@ -106,11 +106,22 @@ function CgeisPreparePage() {
     })
     .filter(Boolean);
 
-  const totalAmount = selectedItems.reduce((sum, row) => sum + Number(row.value) * row.times, 0);
-  const itAmount = Number(billForm.itAmount || 0);
-  const eduCess = itAmount * 0.04;
-  const totalIt = itAmount + eduCess;
-  const netPay = totalAmount - totalIt;
+  const generatedAmount = selectedItems.reduce((sum, row) => sum + Number(row.value) * row.times, 0);
+  const billAmount = Number(billForm.billAmount || 0);
+  const roundedTotal = Math.round(billAmount);
+  const insuranceCoverage = Number(billForm.insuranceCoverage || 0);
+  const otherRecovery = Number(billForm.otherRecovery || 0);
+  const grandTotal = roundedTotal + insuranceCoverage;
+  const netPay = grandTotal - otherRecovery;
+
+  useEffect(() => {
+    setBillForm((prev) => {
+      if (!prev.billAmount) {
+        return { ...prev, billAmount: generatedAmount > 0 ? String(generatedAmount) : "" };
+      }
+      return prev;
+    });
+  }, [generatedAmount]);
 
   const addRange = async () => {
     const nextErrors = {};
@@ -163,6 +174,7 @@ function CgeisPreparePage() {
   const saveBill = async () => {
     const nextErrors = {};
     if (!selectedEmployee) nextErrors.employee = "Select employee";
+    if (!billForm.reason) nextErrors.reason = "Select reason";
     if (!billForm.doPartNumber.trim()) nextErrors.doPartNumber = "Enter DO Part number";
     if (!billForm.doPartDate) nextErrors.doPartDate = "Select DO Part date";
     if (!/^\d{3}$/.test(billForm.billNo.trim())) nextErrors.billNo = "Bill No must be exactly 3 digits";
@@ -170,7 +182,10 @@ function CgeisPreparePage() {
     if (billForm.doPartDate && billForm.billDate && billForm.doPartDate > billForm.billDate) {
       nextErrors.doPartDate = "DO Part date cannot be after bill date";
     }
-    if (Number(billForm.itAmount || 0) < 0) nextErrors.itAmount = "IT amount cannot be negative";
+    if (Number(billForm.billAmount || 0) <= 0) nextErrors.billAmount = "Bill amount must be greater than 0";
+    if (Number(billForm.insuranceCoverage || 0) < 0) nextErrors.insuranceCoverage = "Insurance coverage cannot be negative";
+    if (Number(billForm.otherRecovery || 0) < 0) nextErrors.otherRecovery = "Other recovery cannot be negative";
+    if (Number(billForm.otherRecovery || 0) > 0 && !billForm.remarks.trim()) nextErrors.remarks = "Enter remarks for other recovery";
     if (selectedItems.length === 0) nextErrors.selectedRows = "Enter Times for at least one CGEIS row";
     if (selectedItems.some((item) => !item.value || Number(item.value) <= 0)) nextErrors.selectedValue = "Enter valid value for each selected row";
     setErrors(nextErrors);
@@ -183,11 +198,15 @@ function CgeisPreparePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           empId: selectedEmployee.id,
+          reason: billForm.reason,
           doPartNumber: billForm.doPartNumber.trim(),
           doPartDate: billForm.doPartDate,
           billNo: billForm.billNo.trim(),
           billDate: billForm.billDate,
-          itAmount: Number(billForm.itAmount || 0),
+          totalAmount: Number(billForm.billAmount || 0),
+          insuranceCoverage: Number(billForm.insuranceCoverage || 0),
+          otherRecovery: Number(billForm.otherRecovery || 0),
+          remarks: billForm.remarks.trim(),
           items: selectedItems.map((item) => ({
             fromMonth: item.fromMonth,
             toMonth: item.toMonth,
@@ -367,19 +386,22 @@ function CgeisPreparePage() {
           <div className="toolbar-row">
             <div>
               <h3 className="section-title">Prepare CGEIS Bill</h3>
-              <p className="section-subtitle">Enter Times for the required rows, then save the bill.</p>
+              <p className="section-subtitle">Enter Times for the required rows, then save the bill with the revised CGEIS fields.</p>
             </div>
           </div>
           <div className="form-grid">
-            <div><label>DO Part Number</label><input value={billForm.doPartNumber} onChange={(e) => setBillForm((prev) => ({ ...prev, doPartNumber: e.target.value }))} />{errors.doPartNumber && <p className="error-text">{errors.doPartNumber}</p>}</div>
-            <div><label>DO Part Date</label><input type="date" value={billForm.doPartDate} onChange={(e) => setBillForm((prev) => ({ ...prev, doPartDate: e.target.value }))} />{errors.doPartDate && <p className="error-text">{errors.doPartDate}</p>}</div>
+            <div><label>Reason</label><select value={billForm.reason} onChange={(e) => setBillForm((prev) => ({ ...prev, reason: e.target.value }))}><option value="">Select</option><option value="Superannuation">Superannuation</option><option value="Expired">Expired</option><option value="Resignation">Resignation</option><option value="VRS">VRS</option></select>{errors.reason && <p className="error-text">{errors.reason}</p>}</div>
             <div><label>Bill No</label><input value={billForm.billNo} onChange={(e) => setBillForm((prev) => ({ ...prev, billNo: e.target.value }))} />{errors.billNo && <p className="error-text">{errors.billNo}</p>}</div>
             <div><label>Bill Date</label><input type="date" value={billForm.billDate} onChange={(e) => setBillForm((prev) => ({ ...prev, billDate: e.target.value }))} />{errors.billDate && <p className="error-text">{errors.billDate}</p>}</div>
-            <div><label>Income Tax</label><input type="number" value={billForm.itAmount} onChange={(e) => setBillForm((prev) => ({ ...prev, itAmount: e.target.value }))} />{errors.itAmount && <p className="error-text">{errors.itAmount}</p>}</div>
-            <div><label>Educational Cess (4%)</label><input value={formatAmount(eduCess)} readOnly /></div>
-            <div><label>Total CGEIS Amount</label><input value={formatAmount(totalAmount)} readOnly /></div>
-            <div><label>Total IT Recovery</label><input value={formatAmount(totalIt)} readOnly /></div>
-            <div><label>Net Pay</label><input value={formatAmount(netPay)} readOnly /></div>
+            <div><label>DO Part Number</label><input value={billForm.doPartNumber} onChange={(e) => setBillForm((prev) => ({ ...prev, doPartNumber: e.target.value }))} />{errors.doPartNumber && <p className="error-text">{errors.doPartNumber}</p>}</div>
+            <div><label>DO Part Date</label><input type="date" value={billForm.doPartDate} onChange={(e) => setBillForm((prev) => ({ ...prev, doPartDate: e.target.value }))} />{errors.doPartDate && <p className="error-text">{errors.doPartDate}</p>}</div>
+            <div><label>Bill Amount</label><input type="number" value={billForm.billAmount} onChange={(e) => setBillForm((prev) => ({ ...prev, billAmount: e.target.value }))} />{errors.billAmount && <p className="error-text">{errors.billAmount}</p>}</div>
+            <div><label>Rounded Total</label><input value={formatAmount(roundedTotal)} readOnly /></div>
+            <div><label>Insurance Coverage</label><input type="number" value={billForm.insuranceCoverage} onChange={(e) => setBillForm((prev) => ({ ...prev, insuranceCoverage: e.target.value }))} />{errors.insuranceCoverage && <p className="error-text">{errors.insuranceCoverage}</p>}</div>
+            <div><label>Grand Total</label><input value={formatAmount(grandTotal)} readOnly /></div>
+            <div><label>Other Recovery</label><input type="number" value={billForm.otherRecovery} onChange={(e) => setBillForm((prev) => ({ ...prev, otherRecovery: e.target.value }))} />{errors.otherRecovery && <p className="error-text">{errors.otherRecovery}</p>}</div>
+            <div><label>Remarks</label><input value={billForm.remarks} onChange={(e) => setBillForm((prev) => ({ ...prev, remarks: e.target.value }))} />{errors.remarks && <p className="error-text">{errors.remarks}</p>}</div>
+            <div><label>Net Amount</label><input value={formatAmount(netPay)} readOnly /></div>
             <div style={{ alignSelf: "end" }}><button onClick={saveBill}>Save CGEIS Bill</button></div>
           </div>
         </div>
@@ -397,26 +419,30 @@ function CgeisPreparePage() {
             <table>
               <thead>
                 <tr>
+                  <th>Reason</th>
                   <th>Bill No</th>
                   <th>Bill Date</th>
                   <th>Total Amount</th>
-                  <th>Total IT</th>
-                  <th>Net Pay</th>
+                  <th>Insurance Coverage</th>
+                  <th>Other Recovery</th>
+                  <th>Net Amount</th>
                   <th>DV No</th>
                 </tr>
               </thead>
               <tbody>
                 {billHistory.map((row) => (
                   <tr key={row.id}>
+                    <td>{row.reason || "-"}</td>
                     <td>{row.billNo}</td>
                     <td>{formatDate(row.billDate)}</td>
                     <td>{formatAmount(row.totalAmount)}</td>
-                    <td>{formatAmount(row.totalIt)}</td>
+                    <td>{formatAmount(row.insuranceCoverage)}</td>
+                    <td>{formatAmount(row.otherRecovery)}</td>
                     <td>{formatAmount(row.netPay)}</td>
                     <td>{row.dvNo || "-"}</td>
                   </tr>
                 ))}
-                {!isLoading && billHistory.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center" }}>No CGEIS bills saved yet</td></tr>}
+                {!isLoading && billHistory.length === 0 && <tr><td colSpan="8" style={{ textAlign: "center" }}>No CGEIS bills saved yet</td></tr>}
               </tbody>
             </table>
           </div>

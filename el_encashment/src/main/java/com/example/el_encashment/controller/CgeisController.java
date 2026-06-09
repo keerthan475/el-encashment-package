@@ -1,9 +1,9 @@
 package com.example.el_encashment.controller;
 
 import com.example.el_encashment.model.CgeisBillSummary;
+import com.example.el_encashment.model.CgeisDvUpdateRequest;
 import com.example.el_encashment.model.CgeisGroupedSalaryRow;
 import com.example.el_encashment.model.CgeisPrepareRequest;
-import com.example.el_encashment.model.DvUpdateRequest;
 import com.example.el_encashment.model.Salary;
 import com.example.el_encashment.model.SalaryRangeRequest;
 import com.example.el_encashment.service.CgeisService;
@@ -64,7 +64,7 @@ public class CgeisController {
     }
 
     @PostMapping("/dv")
-    public void updateDv(@RequestBody DvUpdateRequest request) {
+    public void updateDv(@RequestBody CgeisDvUpdateRequest request) {
         service.updateDvDetails(request.getIds(), request);
     }
 

@@ -21,6 +21,7 @@ public class CgeisService {
 
     private static final DateTimeFormatter REPORT_DATE = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter MONTH_LABEL = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
+    private static final List<String> VALID_REASONS = List.of("Superannuation", "Expired", "Resignation", "VRS");
     private final SalaryRepository salaryRepository;
     private final CgeisBillRepository billRepository;
 
@@ -125,6 +126,7 @@ public class CgeisService {
         requireDate(request.getDoPartDate(), "DO Part date");
         requireDate(request.getBillDate(), "Bill date");
         String billNo = normalizeBillNo(request.getBillNo());
+        String reason = normalizeReason(request.getReason());
         if (request.getDoPartDate().isAfter(request.getBillDate())) {
             throw badRequest("DO Part date cannot be after bill date");
         }
@@ -158,13 +160,19 @@ public class CgeisService {
             items.add(item);
         }
 
-        double itAmount = request.getItAmount() == null ? 0 : request.getItAmount();
-        if (itAmount < 0) {
-            throw badRequest("IT amount cannot be negative");
+        validatePositive(request.getTotalAmount(), "Bill amount");
+        double billAmount = round(request.getTotalAmount());
+        double insuranceCoverage = defaultZero(request.getInsuranceCoverage());
+        validateNonNegative(insuranceCoverage, "Insurance coverage");
+        double otherRecovery = defaultZero(request.getOtherRecovery());
+        validateNonNegative(otherRecovery, "Other recovery");
+        String remarks = trimToNull(request.getRemarks());
+        if (otherRecovery > 0 && remarks == null) {
+            throw badRequest("Remarks is required when other recovery is greater than 0");
         }
-        double eduCess = round(itAmount * 0.04);
-        double totalIt = round(itAmount + eduCess);
-        double netPay = round(total - totalIt);
+        double roundedTotal = Math.round(billAmount);
+        double grandTotal = round(roundedTotal + insuranceCoverage);
+        double netPay = round(grandTotal - otherRecovery);
 
         CgeisBill bill = new CgeisBill();
         bill.setEmpId(request.getEmpId());
@@ -172,11 +180,15 @@ public class CgeisService {
         bill.setDoPartDate(request.getDoPartDate());
         bill.setBillNo(billNo);
         bill.setBillDate(request.getBillDate());
-        bill.setTotalAmount(round(total));
-        bill.setItAmount(round(itAmount));
-        bill.setEduCess(eduCess);
-        bill.setTotalIt(totalIt);
+        bill.setReason(reason);
+        bill.setTotalAmount(billAmount);
+        bill.setItAmount(0.0);
+        bill.setEduCess(0.0);
+        bill.setTotalIt(0.0);
         bill.setNetPay(netPay);
+        bill.setInsuranceCoverage(round(insuranceCoverage));
+        bill.setOtherRecovery(round(otherRecovery));
+        bill.setRemarks(remarks);
         bill.setItems(items);
         for (CgeisBillItem item : items) {
             item.setBill(bill);
@@ -209,18 +221,13 @@ public class CgeisService {
         return bills.stream().map(CgeisBillSummary::new).toList();
     }
 
-    public void updateDvDetails(List<Long> ids, DvUpdateRequest req) {
+    public void updateDvDetails(List<Long> ids, CgeisDvUpdateRequest req) {
         if (ids == null || ids.isEmpty()) {
             throw badRequest("Select at least one bill");
         }
         String dvNo = normalizeDvNo(req.getDvNo());
         requireDate(req.getDvDate(), "DV date");
         validatePositive(req.getDvAmount(), "DV amount");
-        validateNonNegative(req.getDvBalance(), "DV balance");
-        validateNonNegative(req.getRecoveryCda(), "Recovery CDA");
-        validateNonNegative(req.getRecoveryCdaTax(), "Recovery CDA Tax");
-        validateRemark(req.getRecoveryCda(), req.getCdaRemarks(), "CDA remarks");
-        validateRemark(req.getRecoveryCdaTax(), req.getCdaTaxRemarks(), "CDA tax remarks");
 
         List<CgeisBill> bills = billRepository.findAllById(ids);
         if (bills.size() != ids.stream().distinct().count()) {
@@ -240,11 +247,6 @@ public class CgeisService {
             bill.setDvNo(dvNo);
             bill.setDvDate(req.getDvDate());
             bill.setDvAmount(req.getDvAmount());
-            bill.setDvBalance(req.getDvBalance());
-            bill.setRecoveryCda(req.getRecoveryCda());
-            bill.setCdaRemarks(trimToNull(req.getCdaRemarks()));
-            bill.setRecoveryCdaTax(req.getRecoveryCdaTax());
-            bill.setCdaTaxRemarks(trimToNull(req.getCdaTaxRemarks()));
         }
         billRepository.saveAll(bills);
     }
@@ -324,7 +326,7 @@ public class CgeisService {
 
                 <div class="claim-block">
                   Claim on account of CGEIS Saving Fund in respect of SHRI %s,
-                  %s, Id number: %s who has retired from Govt. Service w.e.f. %s
+                  %s, Id number: %s who has %s from Govt. Service w.e.f. %s
                   notified vide DO Part-II, %s, Date: %s.
                 </div>
 
@@ -360,6 +362,7 @@ public class CgeisService {
             safe(personnel == null ? null : personnel.getName()),
             categoryLabel(personnel == null ? null : personnel.getDisgType()),
             safe(personnel == null ? null : personnel.getEmpCode()),
+            separationLabel(bill.getReason()),
             formatLongDate(retiredOn),
             safe(bill.getDoPartNumber()),
             formatLongDate(bill.getDoPartDate()),
@@ -407,11 +410,12 @@ public class CgeisService {
 
         double total = defaultZero(bill.getTotalAmount());
         double roundedTotal = Math.round(total);
-        double insuranceFunds = 0;
-        double otherRecovery = 0;
+        double insuranceFunds = defaultZero(bill.getInsuranceCoverage());
+        double otherRecovery = defaultZero(bill.getOtherRecovery());
         double grandTotal = roundedTotal + insuranceFunds;
         double netAmount = grandTotal - otherRecovery;
         LocalDate retiredOn = bill.getItems().isEmpty() ? null : endOfMonth(bill.getItems().get(bill.getItems().size() - 1).getToMonth());
+        String otherRecoveryLabel = otherRecoveryLabel(bill.getRemarks());
 
         return """
             <!doctype html>
@@ -453,7 +457,7 @@ public class CgeisService {
                   (Department of Expenditure) OM No.F/15(3)/78 WIP dated 31<sup>st</sup> October 1980
                   as reproduced in CPRO 27/81 sanction is hereby accorded for the payment of
                   Rs. %.0f/- Rupees %s Only Saving Fund of Central Government Employees Group
-                  Insurance Scheme to SHRI %s, GPFACNO %s, TO, Id number: %s, who has retired
+                  Insurance Scheme to SHRI %s, GPFACNO %s, TO, Id number: %s, who has %s
                   from Govt. Service w.e.f. %s notified vide DO Part-II, No.%s, dated: %s for your
                   audit and payment.
                 </div>
@@ -469,7 +473,7 @@ public class CgeisService {
                   <div class="totals-row"><span>Rounded of TOTAL</span><span>%.2f</span></div>
                   <div class="totals-row"><span>Cgeis Insurance Funds</span><span>%.2f</span></div>
                   <div class="totals-row"><span>GRAND TOTAL</span><span>%.2f</span></div>
-                  <div class="totals-row"><span>Other Recovery</span><span>%.2f</span></div>
+                  <div class="totals-row"><span>%s</span><span>%.2f</span></div>
                   <div class="totals-row"><span>NET AMOUNT</span><span>%.2f</span></div>
                 </div>
 
@@ -498,6 +502,7 @@ public class CgeisService {
             safe(p == null ? null : p.getName()),
             safe(finance == null ? null : finance.getGpfAccountNo()),
             safe(p == null ? null : p.getEmpCode()),
+            separationLabel(bill.getReason()),
             formatLongDate(retiredOn),
             safe(bill.getDoPartNumber()),
             formatLongDate(bill.getDoPartDate()),
@@ -506,6 +511,7 @@ public class CgeisService {
             roundedTotal,
             insuranceFunds,
             grandTotal,
+            otherRecoveryLabel,
             otherRecovery,
             netAmount,
             safe(bill.getBillNo()),
@@ -528,6 +534,19 @@ public class CgeisService {
             throw badRequest("DV No must be exactly 4 digits");
         }
         return sanitized;
+    }
+
+    private String normalizeReason(String value) {
+        String sanitized = trimToNull(value);
+        if (sanitized == null) {
+            throw badRequest("Reason is required");
+        }
+        for (String validReason : VALID_REASONS) {
+            if (validReason.equalsIgnoreCase(sanitized)) {
+                return validReason;
+            }
+        }
+        throw badRequest("Invalid reason");
     }
 
     private boolean isAll(String category) {
@@ -653,6 +672,24 @@ public class CgeisService {
     private String categoryLabel(Integer type) {
         if (type == null) return "-";
         return type == 1 ? "Officer" : "Staff";
+    }
+
+    private String separationLabel(String reason) {
+        if ("Expired".equalsIgnoreCase(reason)) {
+            return "expired";
+        }
+        if ("Resignation".equalsIgnoreCase(reason)) {
+            return "resigned";
+        }
+        if ("VRS".equalsIgnoreCase(reason)) {
+            return "taken voluntary retirement";
+        }
+        return "retired on superannuation";
+    }
+
+    private String otherRecoveryLabel(String remarks) {
+        String trimmedRemarks = trimToNull(remarks);
+        return trimmedRemarks == null ? "Other Recovery" : "Other Recovery (" + trimmedRemarks + ")";
     }
 
     private String amountInWords(long number) {

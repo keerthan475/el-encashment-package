@@ -8,11 +8,6 @@ function CgeisDvDetails() {
   const [dvNo, setDvNo] = useState("");
   const [dvDate, setDvDate] = useState("");
   const [dvAmount, setDvAmount] = useState("");
-  const [dvBalance, setDvBalance] = useState("");
-  const [recoveryCda, setRecoveryCda] = useState("");
-  const [cdaRemarks, setCdaRemarks] = useState("");
-  const [recoveryCdaTax, setRecoveryCdaTax] = useState("");
-  const [cdaTaxRemarks, setCdaTaxRemarks] = useState("");
   const [category, setCategory] = useState("all");
   const [errors, setErrors] = useState({});
   const [statusMessage, setStatusMessage] = useState("");
@@ -21,12 +16,6 @@ function CgeisDvDetails() {
   const showStatus = (type, message) => {
     setStatusType(type);
     setStatusMessage(message);
-  };
-
-  const parseOptionalNumber = (value) => {
-    if (!value) return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : Number.NaN;
   };
 
   const loadData = useCallback(async () => {
@@ -56,16 +45,7 @@ function CgeisDvDetails() {
     if (!/^\d{4}$/.test(dvNo.trim())) nextErrors.dvNo = "DV No must be exactly 4 digits";
     if (!dvDate) nextErrors.dvDate = "Select DV date";
     else if (selectedRecords.some((record) => record.billDate && record.billDate > dvDate)) nextErrors.dvDate = "DV date cannot be before bill date";
-    const dvAmountValue = parseOptionalNumber(dvAmount);
-    if (dvAmountValue === null || Number.isNaN(dvAmountValue) || dvAmountValue <= 0) nextErrors.dvAmount = "Enter valid DV amount";
-    const dvBalanceValue = parseOptionalNumber(dvBalance);
-    if (dvBalanceValue !== null && (Number.isNaN(dvBalanceValue) || dvBalanceValue < 0)) nextErrors.dvBalance = "DV balance cannot be negative";
-    const recoveryCdaValue = parseOptionalNumber(recoveryCda);
-    if (recoveryCdaValue !== null && (Number.isNaN(recoveryCdaValue) || recoveryCdaValue < 0)) nextErrors.recoveryCda = "Recovery CDA cannot be negative";
-    const recoveryCdaTaxValue = parseOptionalNumber(recoveryCdaTax);
-    if (recoveryCdaTaxValue !== null && (Number.isNaN(recoveryCdaTaxValue) || recoveryCdaTaxValue < 0)) nextErrors.recoveryCdaTax = "Recovery CDA Tax cannot be negative";
-    if (recoveryCdaValue > 0 && !cdaRemarks.trim()) nextErrors.cdaRemarks = "Enter CDA remarks";
-    if (recoveryCdaTaxValue > 0 && !cdaTaxRemarks.trim()) nextErrors.cdaTaxRemarks = "Enter CDA tax remarks";
+    if (!dvAmount || Number(dvAmount) <= 0) nextErrors.dvAmount = "Enter valid DV amount";
     if (selectedIds.length === 0) nextErrors.selectedIds = "Select at least one record";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -81,23 +61,13 @@ function CgeisDvDetails() {
           ids: selectedIds,
           dvNo: dvNo.trim(),
           dvDate,
-          dvAmount: Number(dvAmount),
-          dvBalance: parseOptionalNumber(dvBalance),
-          recoveryCda: parseOptionalNumber(recoveryCda),
-          cdaRemarks: cdaRemarks.trim(),
-          recoveryCdaTax: parseOptionalNumber(recoveryCdaTax),
-          cdaTaxRemarks: cdaTaxRemarks.trim()
+          dvAmount: Number(dvAmount)
         })
       });
       if (!response.ok) throw new Error(await response.text() || "Unable to save DV details");
       setDvNo("");
       setDvDate("");
       setDvAmount("");
-      setDvBalance("");
-      setRecoveryCda("");
-      setCdaRemarks("");
-      setRecoveryCdaTax("");
-      setCdaTaxRemarks("");
       setErrors({});
       showStatus("success", "CGEIS DV details saved");
       await loadData();
@@ -136,16 +106,16 @@ function CgeisDvDetails() {
         <div className="table-wrap" style={{ maxHeight: "320px" }}>
           <table>
             <thead>
-              <tr><th>Select</th><th>Bill No</th><th>Bill Date</th><th>Emp Code</th><th>Name</th><th>Category</th><th>Total Amount</th><th>Total IT</th><th>Net Pay</th></tr>
+              <tr><th>Select</th><th>Emp ID</th><th>Reason</th><th>Bill No</th><th>Bill Date</th><th>DO Part No</th><th>DO Part Date</th><th>Ins Rec</th><th>Other Recovery</th><th>Net Amount</th></tr>
             </thead>
             <tbody>
               {pendingRecords.map((row) => (
                 <tr key={row.id}>
                   <td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => setSelectedIds((prev) => prev.includes(row.id) ? prev.filter((id) => id !== row.id) : [...prev, row.id])} /></td>
-                  <td>{row.billNo}</td><td>{formatDate(row.billDate)}</td><td>{row.personnel?.empCode || "-"}</td><td>{row.personnel?.name || "-"}</td><td>{formatDisgType(row.personnel?.disgType)}</td><td>{formatAmount(row.totalAmount)}</td><td>{formatAmount(row.totalIt)}</td><td>{formatAmount(row.netPay)}</td>
+                  <td>{row.personnel?.empCode || "-"}</td><td>{row.reason || "-"}</td><td>{row.billNo}</td><td>{formatDate(row.billDate)}</td><td>{row.doPartNumber || "-"}</td><td>{formatDate(row.doPartDate)}</td><td>{formatAmount(row.insuranceCoverage)}</td><td>{formatAmount(row.otherRecovery)}</td><td>{formatAmount(row.netPay)}</td>
                 </tr>
               ))}
-              {pendingRecords.length === 0 && <tr><td colSpan="9" style={{ textAlign: "center" }}>No pending CGEIS DV records found</td></tr>}
+              {pendingRecords.length === 0 && <tr><td colSpan="10" style={{ textAlign: "center" }}>No pending CGEIS DV records found</td></tr>}
             </tbody>
           </table>
         </div>
@@ -156,11 +126,6 @@ function CgeisDvDetails() {
           <div><label>DV No</label><input value={dvNo} onChange={(e) => { setDvNo(e.target.value); setErrors((prev) => ({ ...prev, dvNo: "" })); }} />{errors.dvNo && <p className="error-text">{errors.dvNo}</p>}</div>
           <div><label>DV Date</label><input type="date" value={dvDate} onChange={(e) => { setDvDate(e.target.value); setErrors((prev) => ({ ...prev, dvDate: "" })); }} />{errors.dvDate && <p className="error-text">{errors.dvDate}</p>}</div>
           <div><label>DV Amount</label><input type="number" value={dvAmount} onChange={(e) => { setDvAmount(e.target.value); setErrors((prev) => ({ ...prev, dvAmount: "" })); }} />{errors.dvAmount && <p className="error-text">{errors.dvAmount}</p>}</div>
-          <div><label>DV Balance</label><input type="number" value={dvBalance} onChange={(e) => { setDvBalance(e.target.value); setErrors((prev) => ({ ...prev, dvBalance: "" })); }} />{errors.dvBalance && <p className="error-text">{errors.dvBalance}</p>}</div>
-          <div><label>Recovery CDA</label><input type="number" value={recoveryCda} onChange={(e) => { setRecoveryCda(e.target.value); setErrors((prev) => ({ ...prev, recoveryCda: "", cdaRemarks: "" })); }} />{errors.recoveryCda && <p className="error-text">{errors.recoveryCda}</p>}</div>
-          <div><label>CDA Remarks</label><input value={cdaRemarks} onChange={(e) => { setCdaRemarks(e.target.value); setErrors((prev) => ({ ...prev, cdaRemarks: "" })); }} />{errors.cdaRemarks && <p className="error-text">{errors.cdaRemarks}</p>}</div>
-          <div><label>Recovery CDA Tax</label><input type="number" value={recoveryCdaTax} onChange={(e) => { setRecoveryCdaTax(e.target.value); setErrors((prev) => ({ ...prev, recoveryCdaTax: "", cdaTaxRemarks: "" })); }} />{errors.recoveryCdaTax && <p className="error-text">{errors.recoveryCdaTax}</p>}</div>
-          <div><label>CDA Tax Remarks</label><input value={cdaTaxRemarks} onChange={(e) => { setCdaTaxRemarks(e.target.value); setErrors((prev) => ({ ...prev, cdaTaxRemarks: "" })); }} />{errors.cdaTaxRemarks && <p className="error-text">{errors.cdaTaxRemarks}</p>}</div>
           <div style={{ alignSelf: "end" }}><button onClick={submitDv}>Save DV Details</button></div>
         </div>
       </div>
@@ -170,15 +135,15 @@ function CgeisDvDetails() {
         <div className="table-wrap" style={{ maxHeight: "320px" }}>
           <table>
             <thead>
-              <tr><th>DV No</th><th>DV Date</th><th>Bill No</th><th>Emp Code</th><th>Name</th><th>Total Amount</th><th>DV Amount</th><th>DV Balance</th></tr>
+              <tr><th>Emp ID</th><th>Reason</th><th>Bill No</th><th>Bill Date</th><th>DO Part No</th><th>DO Part Date</th><th>DV No</th><th>DV Date</th><th>DV Amount</th><th>Net Amount</th></tr>
             </thead>
             <tbody>
               {processedRecords.map((row) => (
                 <tr key={row.id}>
-                  <td>{row.dvNo}</td><td>{formatDate(row.dvDate)}</td><td>{row.billNo}</td><td>{row.personnel?.empCode || "-"}</td><td>{row.personnel?.name || "-"}</td><td>{formatAmount(row.totalAmount)}</td><td>{formatAmount(row.dvAmount)}</td><td>{formatAmount(row.dvBalance)}</td>
+                  <td>{row.personnel?.empCode || "-"}</td><td>{row.reason || "-"}</td><td>{row.billNo}</td><td>{formatDate(row.billDate)}</td><td>{row.doPartNumber || "-"}</td><td>{formatDate(row.doPartDate)}</td><td>{row.dvNo}</td><td>{formatDate(row.dvDate)}</td><td>{formatAmount(row.dvAmount)}</td><td>{formatAmount(row.netPay)}</td>
                 </tr>
               ))}
-              {processedRecords.length === 0 && <tr><td colSpan="8" style={{ textAlign: "center" }}>No processed CGEIS DV records found</td></tr>}
+              {processedRecords.length === 0 && <tr><td colSpan="10" style={{ textAlign: "center" }}>No processed CGEIS DV records found</td></tr>}
             </tbody>
           </table>
         </div>

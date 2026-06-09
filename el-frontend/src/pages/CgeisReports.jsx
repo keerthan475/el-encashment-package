@@ -47,12 +47,12 @@ function CgeisReports() {
         <div className="table-wrap" style={{ maxHeight: "420px" }}>
           <table>
             <thead>
-              <tr><th>Bill No</th><th>Bill Date</th><th>Emp Code</th><th>Name</th><th>Category</th><th>Total Amount</th><th>Total IT</th><th>Net Pay</th><th>Action</th></tr>
+              <tr><th>Reason</th><th>Bill No</th><th>Bill Date</th><th>Emp Code</th><th>Name</th><th>Category</th><th>Total Amount</th><th>Insurance Coverage</th><th>Other Recovery</th><th>Net Amount</th><th>Action</th></tr>
             </thead>
             <tbody>
               {records.map((row) => (
                 <tr key={row.id}>
-                  <td>{row.billNo}</td><td>{formatDate(row.billDate)}</td><td>{row.personnel?.empCode || "-"}</td><td>{row.personnel?.name || "-"}</td><td>{formatDisgType(row.personnel?.disgType)}</td><td>{formatAmount(row.totalAmount)}</td><td>{formatAmount(row.totalIt)}</td><td>{formatAmount(row.netPay)}</td>
+                  <td>{row.reason || "-"}</td><td>{row.billNo}</td><td>{formatDate(row.billDate)}</td><td>{row.personnel?.empCode || "-"}</td><td>{row.personnel?.name || "-"}</td><td>{formatDisgType(row.personnel?.disgType)}</td><td>{formatAmount(row.totalAmount)}</td><td>{formatAmount(row.insuranceCoverage)}</td><td>{formatAmount(row.otherRecovery)}</td><td>{formatAmount(row.netPay)}</td>
                   <td>
                     <div className="actions-row">
                       <button type="button" onClick={() => window.open(`http://localhost:8080/api/cgeis/bill-report/${row.id}`, "_blank")}>View Deduction</button>
@@ -61,7 +61,7 @@ function CgeisReports() {
                   </td>
                 </tr>
               ))}
-              {records.length === 0 && <tr><td colSpan="9" style={{ textAlign: "center" }}>No CGEIS reports found</td></tr>}
+              {records.length === 0 && <tr><td colSpan="11" style={{ textAlign: "center" }}>No CGEIS reports found</td></tr>}
             </tbody>
           </table>
         </div>

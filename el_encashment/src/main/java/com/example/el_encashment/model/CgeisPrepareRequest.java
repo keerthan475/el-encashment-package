@@ -9,7 +9,11 @@ public class CgeisPrepareRequest {
     private LocalDate doPartDate;
     private String billNo;
     private LocalDate billDate;
-    private Double itAmount;
+    private String reason;
+    private Double totalAmount;
+    private Double insuranceCoverage;
+    private Double otherRecovery;
+    private String remarks;
     private List<CgeisBillItemRequest> items;
 
     public Long getEmpId() {
@@ -52,12 +56,44 @@ public class CgeisPrepareRequest {
         this.billDate = billDate;
     }
 
-    public Double getItAmount() {
-        return itAmount;
+    public String getReason() {
+        return reason;
     }
 
-    public void setItAmount(Double itAmount) {
-        this.itAmount = itAmount;
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public Double getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(Double totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public Double getInsuranceCoverage() {
+        return insuranceCoverage;
+    }
+
+    public void setInsuranceCoverage(Double insuranceCoverage) {
+        this.insuranceCoverage = insuranceCoverage;
+    }
+
+    public Double getOtherRecovery() {
+        return otherRecovery;
+    }
+
+    public void setOtherRecovery(Double otherRecovery) {
+        this.otherRecovery = otherRecovery;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 
     public List<CgeisBillItemRequest> getItems() {
