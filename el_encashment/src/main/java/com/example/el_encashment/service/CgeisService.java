@@ -115,6 +115,46 @@ public class CgeisService {
         salaryRepository.deleteByEmpIdAndMonthYearBetween(request.getEmpId(), fromMonth, toMonth);
     }
 
+    public void updateSalaryRange(SalaryRangeRequest request) {
+        if (request.getEmpId() == null) {
+            throw badRequest("Employee is required");
+        }
+        requireDate(request.getFromMonth(), "From month");
+        requireDate(request.getToMonth(), "To month");
+        validatePositive(request.getCgeis(), "CGEIS");
+
+        LocalDate fromMonth = request.getFromMonth().withDayOfMonth(1);
+        LocalDate toMonth = request.getToMonth().withDayOfMonth(1);
+        if (toMonth.isBefore(fromMonth)) {
+            throw badRequest("To month cannot be before From month");
+        }
+
+        List<Salary> rows = salaryRepository.findByEmpIdAndMonthYearBetweenOrderByMonthYearAsc(
+            request.getEmpId(),
+            fromMonth,
+            toMonth
+        );
+        if (rows.isEmpty()) {
+            throw badRequest("No salary records found for the selected range");
+        }
+
+        long expectedMonths = YearMonth.from(fromMonth).until(YearMonth.from(toMonth), java.time.temporal.ChronoUnit.MONTHS) + 1;
+        if (rows.size() != expectedMonths) {
+            throw badRequest("Selected range must contain continuous monthly salary records");
+        }
+
+        LocalDate cursor = fromMonth;
+        for (Salary row : rows) {
+            if (!cursor.equals(row.getMonthYear())) {
+                throw badRequest("Selected range must contain continuous monthly salary records");
+            }
+            row.setCgeis(request.getCgeis());
+            cursor = cursor.plusMonths(1);
+        }
+
+        salaryRepository.saveAll(rows);
+    }
+
     public CgeisBill createBill(CgeisPrepareRequest request) {
         if (request.getEmpId() == null) {
             throw badRequest("Employee is required");

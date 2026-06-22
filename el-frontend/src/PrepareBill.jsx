@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiErrorMessage } from "./utils/api";
 import { formatAmount, formatDate, formatDisgType } from "./utils/formatters";
 
 const emptyForm = {
@@ -162,9 +163,16 @@ function PrepareBill() {
     setAvailableBlocks([]);
     if (!value || !selectedEmployee) return;
     if (value === "Retirement") {
-      const response = await fetch(`http://localhost:8080/api/personnel/${selectedEmployee.id}/retirement-date`);
-      const date = await response.json();
-      setForm((prev) => ({ ...prev, eventDate: date }));
+      try {
+        const response = await fetch(`http://localhost:8080/api/personnel/${selectedEmployee.id}/retirement-date`);
+        if (!response.ok) {
+          throw new Error(await getApiErrorMessage(response, "Unable to load retirement date"));
+        }
+        const date = await response.json();
+        setForm((prev) => ({ ...prev, eventDate: date }));
+      } catch (error) {
+        showStatus("error", error.message || "Unable to load retirement date");
+      }
     }
   };
 
@@ -275,7 +283,7 @@ function PrepareBill() {
         body: method === "DELETE" ? undefined : JSON.stringify(buildPayload())
       });
       if (!response.ok) {
-        const message = await response.text();
+        const message = await getApiErrorMessage(response, "Unable to save record");
         throw new Error(message || "Unable to save record");
       }
       showStatus("success", successMessage);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiErrorMessage } from "../utils/api";
 import { formatAmount, formatDate, formatDisgType } from "../utils/formatters";
 
 function AddMro() {
@@ -125,7 +126,7 @@ function AddMro() {
       });
 
       if (!response.ok) {
-        const message = await response.text();
+        const message = await getApiErrorMessage(response, "Unable to save MRO details");
         throw new Error(message || "Unable to save MRO details");
       }
 

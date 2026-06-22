@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiErrorMessage } from "../utils/api";
 import { formatAmount, formatDate, formatDisgType } from "../utils/formatters";
 
 function AddBillNo() {
@@ -81,7 +82,7 @@ function AddBillNo() {
         body: JSON.stringify({ ids: selectedIds, billNo: billNo.trim(), billDate })
       });
       if (!response.ok) {
-        const message = await response.text();
+        const message = await getApiErrorMessage(response, "Unable to save Bill No");
         throw new Error(message || "Unable to save Bill No");
       }
       setBillNo("");

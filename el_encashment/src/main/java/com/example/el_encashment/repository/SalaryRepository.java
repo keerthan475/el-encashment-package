@@ -18,6 +18,8 @@ public interface SalaryRepository extends JpaRepository<Salary, Long> {
     """)
     List<Salary> findByEmpIdOrderByMonthYearAsc(Long empId);
 
+    List<Salary> findByEmpIdAndMonthYearBetweenOrderByMonthYearAsc(Long empId, LocalDate fromMonth, LocalDate toMonth);
+
     boolean existsByEmpIdAndMonthYear(Long empId, LocalDate monthYear);
 
     void deleteByEmpIdAndMonthYearBetween(Long empId, LocalDate fromMonth, LocalDate toMonth);

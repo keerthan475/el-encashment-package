@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiErrorMessage } from "../utils/api";
 import { formatAmount, formatDate, formatDisgType } from "../utils/formatters";
 
 function CgeisDvDetails() {
@@ -64,7 +65,7 @@ function CgeisDvDetails() {
           dvAmount: Number(dvAmount)
         })
       });
-      if (!response.ok) throw new Error(await response.text() || "Unable to save DV details");
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to save DV details"));
       setDvNo("");
       setDvDate("");
       setDvAmount("");

@@ -11,18 +11,22 @@ public interface PersonnelRepository extends JpaRepository<Personnel, Long> {
     SELECT p
     FROM Personnel p
     LEFT JOIN FETCH p.financeData
-    WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+       OR LOWER(p.empCode) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
     ORDER BY p.name ASC
     """)
-    List<Personnel> searchByName(String name);
+    List<Personnel> searchByName(String searchTerm);
 
     @Query("""
     SELECT p
     FROM Personnel p
     LEFT JOIN FETCH p.financeData
-    WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))
+    WHERE (
+        LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+        OR LOWER(p.empCode) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+    )
     AND p.disgType IN :types
     ORDER BY p.name ASC
     """)
-    List<Personnel> searchByNameAndDisgTypeIn(String name, List<Integer> types);
+    List<Personnel> searchByNameAndDisgTypeIn(String searchTerm, List<Integer> types);
 }

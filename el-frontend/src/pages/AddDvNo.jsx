@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiErrorMessage } from "../utils/api";
 import { formatAmount, formatDate, formatDisgType } from "../utils/formatters";
 
 function AddDvNo() {
@@ -111,7 +112,7 @@ function AddDvNo() {
         })
       });
       if (!response.ok) {
-        const message = await response.text();
+        const message = await getApiErrorMessage(response, "Unable to save DV details");
         throw new Error(message || "Unable to save DV details");
       }
       setDvNo("");

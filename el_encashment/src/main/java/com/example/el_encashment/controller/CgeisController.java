@@ -38,6 +38,11 @@ public class CgeisController {
         service.addSalaryRange(request);
     }
 
+    @PutMapping("/salary")
+    public void updateSalaryRange(@RequestBody SalaryRangeRequest request) {
+        service.updateSalaryRange(request);
+    }
+
     @DeleteMapping("/salary")
     public void deleteSalaryRange(@RequestBody SalaryRangeRequest request) {
         service.deleteSalaryRange(request);

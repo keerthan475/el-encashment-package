@@ -24,6 +24,7 @@ function CgeisPreparePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAddRangeOpen, setIsAddRangeOpen] = useState(false);
+  const [editingRangeKey, setEditingRangeKey] = useState(null);
 
   const showStatus = (type, message) => {
     setStatusType(type);
@@ -93,6 +94,9 @@ function CgeisPreparePage() {
     setSearch(`${employee.name} | ${employee.empCode}`);
     setEmployees([]);
     setIsSearchOpen(false);
+    setRangeForm(emptyRangeForm);
+    setEditingRangeKey(null);
+    setIsAddRangeOpen(false);
     setErrors({});
     await loadEmployeeData(employee.id);
   };
@@ -146,12 +150,62 @@ function CgeisPreparePage() {
       });
       if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to add salary range"));
       setRangeForm(emptyRangeForm);
+      setEditingRangeKey(null);
       setIsAddRangeOpen(false);
       showStatus("success", "CGEIS range added successfully");
       await loadEmployeeData(selectedEmployee.id);
     } catch (error) {
       showStatus("error", error.message || "Unable to add salary range");
     }
+  };
+
+  const updateRange = async () => {
+    const nextErrors = {};
+    if (!selectedEmployee) nextErrors.employee = "Select employee";
+    if (!rangeForm.fromMonth) nextErrors.fromMonth = "Select from month";
+    if (!rangeForm.toMonth) nextErrors.toMonth = "Select to month";
+    if (!rangeForm.cgeis || Number(rangeForm.cgeis) <= 0) nextErrors.cgeis = "Enter valid CGEIS";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    try {
+      clearStatus();
+      const response = await fetch("http://localhost:8080/api/cgeis/salary", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empId: selectedEmployee.id,
+          fromMonth: rangeForm.fromMonth,
+          toMonth: rangeForm.toMonth,
+          cgeis: Number(rangeForm.cgeis)
+        })
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to update salary range"));
+      setRangeForm(emptyRangeForm);
+      setEditingRangeKey(null);
+      setIsAddRangeOpen(false);
+      showStatus("success", "CGEIS range updated successfully");
+      await loadEmployeeData(selectedEmployee.id);
+    } catch (error) {
+      showStatus("error", error.message || "Unable to update salary range");
+    }
+  };
+
+  const startEditRange = (row) => {
+    setRangeForm({
+      fromMonth: row.fromMonth,
+      toMonth: row.toMonth,
+      cgeis: row.cgeis ? String(row.cgeis) : ""
+    });
+    setEditingRangeKey(buildRowKey(row));
+    setIsAddRangeOpen(true);
+    setErrors((prev) => ({ ...prev, fromMonth: "", toMonth: "", cgeis: "" }));
+  };
+
+  const cancelRangeEdit = () => {
+    setRangeForm(emptyRangeForm);
+    setEditingRangeKey(null);
+    setIsAddRangeOpen(false);
   };
 
   const deleteRange = async (row) => {
@@ -293,7 +347,16 @@ function CgeisPreparePage() {
               <h3 className="section-title">Add CGEIS Range</h3>
               <p className="section-subtitle">Monthly values are stored in DB and grouped automatically in the table below.</p>
             </div>
-            <button type="button" onClick={() => setIsAddRangeOpen((prev) => !prev)}>
+            <button
+              type="button"
+              onClick={() => {
+                if (isAddRangeOpen) {
+                  cancelRangeEdit();
+                } else {
+                  setIsAddRangeOpen(true);
+                }
+              }}
+            >
               {isAddRangeOpen ? "Hide Range Form" : "Add CGEIS Range"}
             </button>
           </div>
@@ -315,9 +378,23 @@ function CgeisPreparePage() {
                 {errors.cgeis && <p className="error-text">{errors.cgeis}</p>}
               </div>
               <div style={{ alignSelf: "end" }}>
-                <button onClick={addRange}>Add New Range</button>
+                <button onClick={editingRangeKey ? updateRange : addRange}>
+                  {editingRangeKey ? "Update Range" : "Add New Range"}
+                </button>
               </div>
+              {editingRangeKey && (
+                <div style={{ alignSelf: "end" }}>
+                  <button type="button" onClick={cancelRangeEdit}>
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
+          )}
+          {editingRangeKey && (
+            <p className="helper-text" style={{ marginTop: "12px" }}>
+              Editing the selected salary range. Save to refresh the grouped rows below.
+            </p>
           )}
         </div>
       )}
@@ -356,16 +433,20 @@ function CgeisPreparePage() {
                       <td>{formatAmount(row.cgeis)}</td>
                       <td><input type="number" min="0" value={valueMap[key] ?? ""} onChange={(e) => setValueMap((prev) => ({ ...prev, [key]: e.target.value }))} /></td>
                       <td><input type="number" min="0" value={timesMap[key] ?? ""} onChange={(e) => setTimesMap((prev) => ({ ...prev, [key]: e.target.value }))} /></td>
-                      <td>{times > 0 && Number(valueMap[key] || 0) > 0 ? formatAmount(Number(valueMap[key]) * times) : "-"}</td>
-                      <td>
-                        <div className="actions-row">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRangeForm({ fromMonth: row.toMonth, toMonth: row.toMonth, cgeis: row.cgeis || "" });
-                              setIsAddRangeOpen(true);
-                            }}
-                          >
+                       <td>{times > 0 && Number(valueMap[key] || 0) > 0 ? formatAmount(Number(valueMap[key]) * times) : "-"}</td>
+                       <td>
+                         <div className="actions-row">
+                           <button type="button" onClick={() => startEditRange(row)}>
+                             Edit
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => {
+                                setRangeForm({ fromMonth: row.toMonth, toMonth: row.toMonth, cgeis: row.cgeis || "" });
+                                setEditingRangeKey(null);
+                                setIsAddRangeOpen(true);
+                             }}
+                           >
                             Add New
                           </button>
                           <button type="button" onClick={() => deleteRange(row)} style={{ background: "linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)" }}>Delete</button>

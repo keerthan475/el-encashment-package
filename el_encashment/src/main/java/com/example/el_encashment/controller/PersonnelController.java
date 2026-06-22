@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/personnel")
@@ -55,10 +57,13 @@ public class PersonnelController {
         Optional<Personnel> personnelOpt = personnelRepository.findById(id);
 
         if (personnelOpt.isEmpty()) {
-            throw new RuntimeException("Personnel not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Personnel not found");
         }
 
         LocalDate dob = personnelOpt.get().getDob();
+        if (dob == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date of birth is missing for this employee");
+        }
         return retirementService.calculateRetirementDate(dob);
     }
 }
